@@ -47,7 +47,7 @@ function runBootSequence() {
 }
 
 function finalizeBoot() {
-    if (sessionStorage.getItem(CONFIG.SESSION_KEY) === "true") {
+    if (localStorage.getItem(CONFIG.SESSION_KEY) === "true") {
         showHub();
     } else {
         showAuth();
@@ -72,7 +72,7 @@ function showHub() {
 function handleAuth() {
     if (dom.input.value === CONFIG.SECRET) {
         addLog("Autoryzacja OK. Generowanie tokena...", "success");
-        sessionStorage.setItem(CONFIG.SESSION_KEY, "true");
+        localStorage.setItem(CONFIG.SESSION_KEY, "true");
         setTimeout(showHub, 600);
     } else {
         addLog("BŁĄD: Nieprawidłowy klucz!", "danger");
@@ -90,12 +90,12 @@ function connectToNode(url) {
     addLog("Inicjalizacja Handshake → " + url, "success");
     const fullUrl = url + (url.indexOf("?") >= 0 ? "&" : "?") + "auth=" + encodeURIComponent(token);
     setTimeout(function () {
-        window.location.replace(fullUrl);
+        window.open(fullUrl, "_blank", "noopener,noreferrer");
     }, 400);
 }
 
 function logout() {
-    sessionStorage.removeItem(CONFIG.SESSION_KEY);
+    localStorage.removeItem(CONFIG.SESSION_KEY);
     location.reload();
 }
 
@@ -129,3 +129,17 @@ document.querySelectorAll('.node-card').forEach(function (card) {
     });
 });
 dom.input.addEventListener('keydown', function (e) { if (e.key === 'Enter') handleAuth(); });
+
+function scrollToTerminal() {
+    if (!dom.terminal) return;
+    dom.terminal.scrollTop = dom.terminal.scrollHeight;
+    dom.terminal.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+var bootScrollBtn = document.getElementById('bootScrollBtn');
+if (bootScrollBtn) {
+    bootScrollBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        scrollToTerminal();
+    });
+}
