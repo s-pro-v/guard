@@ -1,6 +1,7 @@
 const CONFIG = {
     SECRET: "admin123",
-    SESSION_KEY: "lks_vault_auth"
+    SESSION_KEY: "lks_vault_auth",
+    CARDS_URL: "https://raw.githubusercontent.com/s-pro-v/json-lista/refs/heads/main/card.json"
 };
 
 const dom = {
@@ -14,6 +15,142 @@ const dom = {
 };
 
 let uptimeSec = 0;
+
+// --- Favicon dla kart hub (ikony według stron) ---
+function getFaviconUrl(url) {
+    var cleanUrl = url
+        .replace(/^https?:\/\//, "")
+        .replace(/^www\./, "")
+        .split("/")[0];
+    if (cleanUrl.indexOf("carrd.co") !== -1) {
+        return "https://" + cleanUrl + "/assets/images/favicon.png";
+    }
+    return "https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://" + cleanUrl + "&size=32";
+}
+
+function getFirstLetter(url) {
+    try {
+        var domain = url
+            .replace(/^https?:\/\//, "")
+            .replace(/^www\./, "");
+        return domain.charAt(0).toUpperCase();
+    } catch (e) {
+        return "?";
+    }
+}
+
+function handleFaviconError(imgElement, url) {
+    var attempt = parseInt(imgElement.dataset.attempt, 10) || 1;
+    var cleanUrl = url
+        .replace(/^https?:\/\//, "")
+        .replace(/^www\./, "")
+        .split("/")[0];
+    var isCarrd = cleanUrl.indexOf("carrd.co") !== -1;
+
+    if (isCarrd) {
+        if (attempt === 1) {
+            imgElement.src = "https://" + cleanUrl + "/assets/images/apple-touch-icon.png";
+            imgElement.dataset.attempt = "2";
+        } else if (attempt === 2) {
+            imgElement.src = "https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://" + cleanUrl + "&size=32";
+            imgElement.dataset.attempt = "3";
+        } else if (attempt === 3) {
+            imgElement.src = "https://favicon.yandex.net/favicon/" + cleanUrl;
+            imgElement.dataset.attempt = "4";
+        } else {
+            showFaviconFallback(imgElement);
+        }
+    } else {
+        if (attempt === 1) {
+            imgElement.src = "https://www.google.com/s2/favicons?domain=" + cleanUrl + "&sz=32";
+            imgElement.dataset.attempt = "2";
+        } else if (attempt === 2) {
+            imgElement.src = "https://icons.duckduckgo.com/ip3/" + cleanUrl + ".ico";
+            imgElement.dataset.attempt = "3";
+        } else if (attempt === 3) {
+            imgElement.src = "https://" + cleanUrl + "/favicon.ico";
+            imgElement.dataset.attempt = "4";
+        } else {
+            showFaviconFallback(imgElement);
+        }
+    }
+}
+
+function showFaviconFallback(imgElement) {
+    imgElement.style.display = "none";
+    var fallback = imgElement.nextElementSibling;
+    if (fallback && fallback.classList.contains("node-card-favicon-fallback")) {
+        fallback.style.display = "flex";
+    }
+}
+
+function loadFaviconsForHub() {
+    document.querySelectorAll(".node-card").forEach(function (card) {
+        var url = card.getAttribute("data-url") || card.getAttribute("href");
+        if (!url) return;
+        var wrap = card.querySelector(".node-card-favicon-wrap");
+        if (!wrap) return;
+        var img = wrap.querySelector(".node-card-favicon");
+        var fallbackSpan = wrap.querySelector(".node-card-favicon-fallback");
+        if (!img || !fallbackSpan) return;
+        fallbackSpan.textContent = getFirstLetter(url);
+        img.dataset.attempt = "1";
+        img.src = getFaviconUrl(url);
+        img.onerror = function () {
+            handleFaviconError(img, url);
+        };
+    });
+}
+
+var DEFAULT_CARDS = [
+
+];
+
+function renderHubGrid(cards) {
+    var grid = document.getElementById("hubGrid");
+    if (!grid) return;
+    grid.innerHTML = "";
+    if (!Array.isArray(cards) || cards.length === 0) return;
+    cards.forEach(function (item) {
+        var url = (item.url || item.href || "").trim();
+        var title = item.title || "Node";
+        var description = item.description || item.desc || "";
+        if (!url) return;
+        var a = document.createElement("a");
+        a.className = "node-card";
+        a.href = url;
+        a.setAttribute("data-url", url);
+        a.innerHTML =
+            "<span class=\"node-card-favicon-wrap\">" +
+            "<img class=\"node-card-favicon\" alt=\"\" />" +
+            "<span class=\"node-card-favicon-fallback\"></span>" +
+            "</span>" +
+            "<h3>" + escapeHtml(title) + "</h3>" +
+            "<p>" + escapeHtml(description) + "</p>";
+        grid.appendChild(a);
+    });
+    loadFaviconsForHub();
+}
+
+function escapeHtml(text) {
+    var div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function loadHubGrid() {
+    var url = CONFIG.CARDS_URL;
+    fetch(url)
+        .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error(res.status)); })
+        .then(function (data) {
+            var cards = Array.isArray(data) ? data : (data.cards || data.items || []);
+            renderHubGrid(cards);
+        })
+        .catch(function () {
+            renderHubGrid(DEFAULT_CARDS);
+            if (dom.terminal) addLog("Hub: używam listy lokalnej (card.json niedostępny).", "warning");
+        });
+}
 
 function addLog(msg, type = '') {
     const line = document.createElement('div');
@@ -110,6 +247,8 @@ function toggleTheme() {
 window.onload = function () {
     const saved = localStorage.getItem('lks_theme') || 'dark';
     document.documentElement.setAttribute('theme', saved);
+    if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
+    loadHubGrid();
     runBootSequence();
     setInterval(function () {
         document.getElementById('sysClock').textContent = new Date().toLocaleTimeString();
@@ -120,13 +259,12 @@ window.onload = function () {
 
 // Bezpieczne listenery (po załadowaniu DOM)
 document.getElementById('authBtn').addEventListener('click', handleAuth);
-document.querySelectorAll('.node-card').forEach(function (card) {
-    var url = card.getAttribute('data-url');
-    if (!url) return;
-    card.addEventListener('click', function (e) {
+document.getElementById('hubGrid').addEventListener('click', function (e) {
+    var card = e.target.closest('.node-card');
+    if (card && card.getAttribute('data-url')) {
         e.preventDefault();
-        connectToNode(url);
-    });
+        connectToNode(card.getAttribute('data-url'));
+    }
 });
 dom.input.addEventListener('keydown', function (e) { if (e.key === 'Enter') handleAuth(); });
 
