@@ -1,63 +1,13 @@
-:root {
-    /* --- COLORS: PALETTE --- */
-    --bg-color: #f8f9fa;
-    --highlight-color: #f36c00;
-    --success-color: #28a745;
-    --danger-color: #dc3545;
-    --warning-color: #ffc107;
-    --info-color: #17a2b8;
-    --border-color: #dee2e6;
-    --vs-vi-color: #3b82f6;
-    --tak-color: #16a34a;
-    --nie-color: #dc2626;
-
-    --rgba-success-color: 40, 167, 69;
-    --rgba-danger-color: 220, 53, 69;
-    --rgba-highlight-color: 243, 108, 0;
-
-    /* --- SETTINGS --- */
-    --font-main: "JetBrains Mono", monaco, courier, monospace;
-    --transition-speed: 0.25s;
-
-    /* --- LIGHT THEME DEFAULTS --- */
-    --bg: #f8f9fa;
-    --bg-primary: #fff;
-    --bg-secondary: #f8f9fa;
-    --bg-tertiary: #fff;
-    --text-primary: #212529;
-    --text-muted: #6c757d;
-    --text-inverse: #fff;
-
-    --shadow-drop:
-        rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(78, 78, 78, 0.185) 0px 2px 6px 2px;
-    --shadow-inset:
-        inset rgba(78, 78, 78, 0.185) 0px 2px 6px 2px,
-        inset rgba(0, 0, 0, 0.3) 0px 1px 2px 0px;
-    --shadow-hover:
-        rgba(32, 32, 32, 0.2) 0px 0px 0px 1px,
-        rgba(0, 0, 0, 0.325) 0px 2px 3px -0.5px,
-        rgba(255, 255, 255, 0.04) 0px 0.5px 0px inset;
-}
-
-:root[theme="dark"] {
-    --bg: #0a0a0a;
-    --bg-primary: #121212;
-    --bg-secondary: #1a1a1a;
-    --bg-tertiary: #252526;
-    --border-color: #2a2a2a;
-    --text-primary: #e0e0e0;
-    --text-muted: #858585;
-    --text-inverse: #000;
-    --shadow-drop:
-        rgba(32, 32, 32, 0.4) 0px 0px 0px 2px, rgba(0, 0, 0, 0.65) 0px 4px 6px -1px,
-        rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
-}
+@import url("https://cdn.jsdelivr.net/gh/s-pro-v/root_web@refs/heads/main/root.css");
 
 * {
     box-sizing: border-box;
     border-radius: 0 !important;
     margin: 0;
     padding: 0;
+    user-select: none;
+    scrollbar-width: none;
+    outline: none;
 }
 
 body {
@@ -79,13 +29,31 @@ body {
     background-size: 40px 40px;
 }
 
+body::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(circle at 20% 30%, rgba(255, 115, 0, 0.08) 0%, transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.03) 0%, transparent 40%), radial-gradient(circle at 80% 70%, rgba(255, 115, 0, 0.08) 0%, transparent 40%), radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.03) 0%, transparent 40%);
+    background-position: center center;
+    background-repeat: repeat;
+
+}
+
 .system-container {
     width: 95vw;
     max-width: 900px;
     height: 600px;
-    background: var(--bg-primary);
+    background-color: var(--bg-color);
+    background-image: url("https://raw.githubusercontent.com/s-pro-v/img/d15bc10f8bedd0dfedecf4b3b1e0ea0f83abb8ff/container01.svg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-drop);
+    font-family: var(--font-mono);
     display: grid;
     grid-template-rows: 40px 1fr 140px 30px;
     position: relative;
@@ -115,14 +83,16 @@ body {
     }
 
     & .sys-bar {
-        background: var(--bg-secondary);
+        background: var(--metal-gradient);
         border-bottom: 1px solid var(--border-color);
         display: flex;
         align-items: center;
         padding: 0 15px;
         justify-content: space-between;
         font-size: 0.7rem;
+        font-family: var(--font-mono);
         letter-spacing: 1px;
+        box-shadow: var(--shadow-drop);
 
         & .status-node {
             color: var(--highlight-color);
@@ -157,7 +127,7 @@ body {
     }
 
     & .terminal-output {
-        background: var(--bg-secondary);
+        background: var(--bg);
         border-top: 1px solid var(--border-color);
         padding: 15px;
         font-size: 0.7rem;
@@ -189,7 +159,7 @@ body {
     }
 
     & .footer-bar {
-        background: var(--bg-secondary);
+        background: var(--bg);
         border-top: 1px solid var(--border-color);
         padding: 0 15px;
         display: flex;
@@ -214,7 +184,7 @@ body {
 
     & input {
         width: 100%;
-        background: var(--bg-tertiary);
+        background: var(--bg);
         border: 1px solid var(--border-color);
         color: var(--text-primary);
         padding: 15px;
@@ -224,15 +194,16 @@ body {
         margin-bottom: 20px;
 
         &:focus {
-            border-color: var(--highlight-color);
+            background: var(--hover-bg);
+            border-bottom-color: var(--highlight-color);
             box-shadow: var(--shadow-inset);
         }
     }
 
     & button {
         width: 100%;
-        background: var(--highlight-color);
-        color: var(--text-inverse);
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
         border: none;
         padding: 15px;
         font-family: var(--font-main);
@@ -240,10 +211,17 @@ body {
         text-transform: uppercase;
         cursor: pointer;
         transition: var(--transition-speed);
+        box-shadow: var(--shadow-drop);
 
         &:hover {
-            filter: brightness(1.1);
-            box-shadow: var(--shadow-hover);
+            background: var(--hover-bg);
+            color: var(--text-primary);
+
+            &:active {
+                background: var(--bg-tertiary);
+                color: var(--text-muted);
+                box-shadow: var(--shadow-inset);
+            }
         }
     }
 }
@@ -254,6 +232,9 @@ body {
     gap: 20px;
 
     & .node-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
         padding: 20px;
@@ -287,13 +268,27 @@ body {
     position: fixed;
     top: 20px;
     right: 20px;
-    background: var(--bg-primary);
+    background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
-    color: var(--text-primary);
+    color: var(--text-muted);
     padding: 8px 12px;
     cursor: pointer;
     font-size: 0.7rem;
     z-index: 1000;
+    box-shadow: var(--shadow-drop);
+    transition: var(--transition-speed);
+
+    &:hover {
+        background: var(--hover-bg);
+        color: var(--text-primary);
+        box-shadow: var(--shadow-drop);
+    }
+
+    &:active {
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+        box-shadow: var(--shadow-inset);
+    }
 }
 
 .progress-container {
