@@ -6,8 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Share+Tech+Mono&display=swap"
         rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/s-pro-v/root_web@refs/heads/main/root.css">
     <title>LKS_SECURE_HUB // CORE_V4.6</title>
     <link rel="stylesheet" href="index.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 
 <body>
@@ -16,60 +18,50 @@
 
     <div class="system-container">
         <header class="sys-bar">
-            <span class="status-node">HUB_LINKOSI_v4.6</span>
+            <span class="status-node"><i data-lucide="shield-check" class="icon-inline"></i> HUB_LINKOSI_v4.6</span>
             <span id="sysClock">00:00:00</span>
         </header>
 
         <main class="main-view">
             <div id="bootScreen" class="active">
-                <span style="font-size: 0.8rem; letter-spacing: 3px;">INITIALIZING_CORE</span>
+                <span style="font-size: 0.8rem; letter-spacing: 3px;"><i data-lucide="cpu" class="icon-inline"></i> INITIALIZING_CORE</span>
                 <div class="progress-container">
                     <div id="bootProgress" class="progress-bar"></div>
                 </div>
+                <button type="button" class="boot-scroll-btn" id="bootScrollBtn" title="Przewiń do logów">↓ LOG_TERMINAL</button>
             </div>
 
             <div id="authView">
                 <div class="auth-box">
-                    <h1>Weryfikacja Tożsamości</h1>
+                    <h1><i data-lucide="lock" class="icon-inline"></i> Weryfikacja Tożsamości</h1>
                     <input type="password" id="passInput" placeholder="ENTER_ENCRYPTION_KEY" autocomplete="off">
-                    <button id="authBtn">Autoryzuj sesję</button>
+                    <button id="authBtn"><i data-lucide="key-round" class="icon-inline"></i> Autoryzuj sesję</button>
                 </div>
             </div>
 
             <div id="hubView">
                 <div
                     style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 25px;">
-                    <span style="font-size: 0.9rem;">DOSTĘPNE_PUNKTY_WEJŚCIA</span>
-                    <button onclick="logout()"
-                        style="background: none; border: 1px solid var(--border-color); color: var(--danger-color); font-size: 0.6rem; padding: 4px 10px; cursor: pointer;">TERMINATE_SESSION</button>
+                    <span style="font-size: 0.9rem;"><i data-lucide="shield" class="icon-inline"></i> DOSTĘPNE_PUNKTY_WEJŚCIA</span>
+                    <button onclick="logout()" class="btn-danger"
+                        style="font-size: 0.6rem; padding: 4px 10px; cursor: pointer;">TERMINATE_SESSION</button>
                 </div>
-                <div class="hub-grid" id="hubGrid">
-                    <a class="node-card" id="mainNode" href="https://linkosi.carrd.co"
-                        data-url="https://linkosi.carrd.co">
-                        <h3>Personal Interface</h3>
-                        <p>Główny profil użytkownika Linkosi. Status połączenia: Oczekujący.</p>
-                    </a>
-                    <a class="node-card" href="https://vs-note.carrd.co" data-url="https://vs-note.carrd.co">
-                        <h3>Terminal: Notatnik</h3>
-                        <p>VsTERMINAL – notatnik, operacje tekstowe, moduł edycji. SYSTEM_READY.</p>
-                    </a>
-                    <a class="node-card" href="https://editor-vs.carrd.co" data-url="https://editor-vs.carrd.co">
-                        <h3>Cyber Dev // Web Stack</h3>
-                        <p>Monaco Stack – edytor kodu, projekty, build. WEB_KERNEL.</p>
-                    </a>
-                </div>
+                <div class="hub-grid" id="hubGrid"></div>
             </div>
         </main>
 
         <section id="terminal" class="terminal-output"></section>
 
         <footer class="footer-bar">
-            <span>Uptime: <span id="uptime">0s</span></span>
-            <span>Auth_Level: <span id="authLvl">0_GUEST</span></span>
+            <span><i data-lucide="clock" class="icon-inline icon-sm"></i> Uptime: <span id="uptime">0s</span></span>
+            <span><i data-lucide="fingerprint" class="icon-inline icon-sm"></i> Auth_Level: <span id="authLvl">0_GUEST</span></span>
         </footer>
     </div>
 
     <script src="index.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () { lucide.createIcons(); });
+    </script>
 
 </body>
 
