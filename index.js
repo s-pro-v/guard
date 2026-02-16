@@ -85,11 +85,12 @@ function handleAuth() {
 
 function connectToNode(url) {
     if (!url) return;
+    url = url.replace(/\/$/, ""); // bez końcowego slasha
     const token = btoa(CONFIG.SECRET + "_" + new Date().getDate());
     addLog("Inicjalizacja Handshake → " + url, "success");
+    const fullUrl = url + (url.indexOf("?") >= 0 ? "&" : "?") + "auth=" + encodeURIComponent(token);
     setTimeout(function () {
-        const sep = url.indexOf("?") >= 0 ? "&" : "?";
-        window.location.href = url + sep + "auth=" + token;
+        window.location.replace(fullUrl);
     }, 400);
 }
 
@@ -119,8 +120,12 @@ window.onload = function () {
 
 // Bezpieczne listenery (po załadowaniu DOM)
 document.getElementById('authBtn').addEventListener('click', handleAuth);
-document.querySelector('.hub-grid').addEventListener('click', function (e) {
-    const card = e.target.closest('.node-card');
-    if (card && card.dataset.url) connectToNode(card.dataset.url);
+document.querySelectorAll('.node-card').forEach(function (card) {
+    var url = card.getAttribute('data-url');
+    if (!url) return;
+    card.addEventListener('click', function (e) {
+        e.preventDefault();
+        connectToNode(url);
+    });
 });
 dom.input.addEventListener('keydown', function (e) { if (e.key === 'Enter') handleAuth(); });
