@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pl" theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LKS_SECURE_HUB // CORE_V4.6</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+
+    <button class="theme-toggle" onclick="toggleTheme()">PROTOCOL_THEME</button>
+
+    <div class="system-container">
+        <header class="sys-bar">
+            <span class="status-node">HUB_LINKOSI_v4.6</span>
+            <span id="sysClock">00:00:00</span>
+        </header>
+
+        <main class="main-view">
+            <div id="bootScreen" class="active">
+                <span style="font-size: 0.8rem; letter-spacing: 3px;">INITIALIZING_CORE</span>
+                <div class="progress-container">
+                    <div id="bootProgress" class="progress-bar"></div>
+                </div>
+            </div>
+
+            <div id="authView">
+                <div class="auth-box">
+                    <h1>Weryfikacja Tożsamości</h1>
+                    <input type="password" id="passInput" placeholder="ENTER_ENCRYPTION_KEY" autocomplete="off">
+                    <button id="authBtn">Autoryzuj sesję</button>
+                </div>
+            </div>
+
+            <div id="hubView">
+                <div
+                    style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 25px;">
+                    <span style="font-size: 0.9rem;">DOSTĘPNE_PUNKTY_WEJŚCIA</span>
+                    <button onclick="logout()"
+                        style="background: none; border: 1px solid var(--border-color); color: var(--danger-color); font-size: 0.6rem; padding: 4px 10px; cursor: pointer;">TERMINATE_SESSION</button>
+                </div>
+                <div class="hub-grid">
+                    <div class="node-card" id="mainNode">
+                        <h3>Personal Interface</h3>
+                        <p>Główny profil użytkownika Linkosi. Status połączenia: Oczekujący.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <section id="terminal" class="terminal-output"></section>
+
+        <footer class="footer-bar">
+            <span>Uptime: <span id="uptime">0s</span></span>
+            <span>Auth_Level: <span id="authLvl">0_GUEST</span></span>
+        </footer>
+    </div>
+
+    <script src="index.js"></script>
+
+</body>
+
+</html>
