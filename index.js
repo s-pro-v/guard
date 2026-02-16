@@ -83,12 +83,13 @@ function handleAuth() {
     }
 }
 
-function connectNode() {
-    const url = "https://linkosi.carrd.co";
+function connectToNode(url) {
+    if (!url) return;
     const token = btoa(CONFIG.SECRET + "_" + new Date().getDate());
-    addLog("Inicjalizacja Handshake...");
+    addLog("Inicjalizacja Handshake → " + url, "success");
     setTimeout(function () {
-        window.location.href = url + "/?auth=" + token;
+        const sep = url.indexOf("?") >= 0 ? "&" : "?";
+        window.location.href = url + sep + "auth=" + token;
     }, 400);
 }
 
@@ -118,5 +119,8 @@ window.onload = function () {
 
 // Bezpieczne listenery (po załadowaniu DOM)
 document.getElementById('authBtn').addEventListener('click', handleAuth);
-document.getElementById('mainNode').addEventListener('click', connectNode);
+document.querySelector('.hub-grid').addEventListener('click', function (e) {
+    const card = e.target.closest('.node-card');
+    if (card && card.dataset.url) connectToNode(card.dataset.url);
+});
 dom.input.addEventListener('keydown', function (e) { if (e.key === 'Enter') handleAuth(); });
