@@ -1,5 +1,6 @@
 @import url("https://cdn.jsdelivr.net/gh/s-pro-v/root_web@refs/heads/main/root.css");
 
+
 * {
     box-sizing: border-box;
     border-radius: 0 !important;
@@ -14,11 +15,11 @@ body {
     background: var(--bg);
     color: var(--text-primary);
     font-family: var(--font-main);
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    overflow-y: auto;
     transition:
         background var(--transition-speed),
         color var(--transition-speed);
@@ -43,9 +44,9 @@ body::before {
 }
 
 .system-container {
-    width: 95vw;
-    max-width: 900px;
-    height: 600px;
+    width: 98vw;
+    max-width: 1100px;
+    height: 700px;
     background-color: var(--bg-color);
     background-image: url("https://raw.githubusercontent.com/s-pro-v/img/d15bc10f8bedd0dfedecf4b3b1e0ea0f83abb8ff/container01.svg");
     background-size: cover;
@@ -101,9 +102,10 @@ body::before {
     }
 
     & .main-view {
-        padding: 30px;
+        padding: 0.5rem;
         overflow-y: auto;
         position: relative;
+        min-width: 0;
 
         & #bootScreen {
             display: flex;
@@ -112,6 +114,30 @@ body::before {
             justify-content: center;
             height: 100%;
             gap: 15px;
+            margin-bottom: 1rem;
+        }
+
+        & .boot-scroll-btn {
+            margin-top: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: var(--transition-speed);
+            box-shadow: var(--shadow-drop);
+        }
+
+        & .boot-scroll-btn:hover {
+            background: var(--hover-bg);
+            color: var(--highlight-color);
+        }
+
+        & .boot-scroll-btn:active {
+            box-shadow: var(--shadow-inset);
         }
 
         & #authView,
@@ -232,35 +258,75 @@ body::before {
     gap: 20px;
 
     & .node-card {
-        display: block;
+        display: flex;
+        flex-direction: column;
         text-decoration: none;
         color: inherit;
-        background: var(--bg-secondary);
+        background: var(--bg-tertiary);
         border: 1px solid var(--border-color);
         padding: 20px;
         cursor: pointer;
-        transition: var(--transition-speed);
+        transition: all var(--transition-speed);
+        box-shadow: var(--shadow-drop);
+    }
 
-        & h3 {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-        }
+    & .node-card-favicon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        margin-bottom: 12px;
+        flex-shrink: 0;
+    }
 
-        & p {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            line-height: 1.4;
-        }
+    & .node-card-favicon {
+        width: 28px;
+        height: 28px;
+        object-fit: contain;
+    }
 
-        &:hover {
-            border-color: var(--highlight-color);
-            background: rgba(var(--rgba-highlight-color), 0.05);
+    & .node-card-favicon-fallback {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        background: var(--border-color);
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: bold;
+        font-family: var(--font-mono);
+    }
 
-            & h3 {
-                color: var(--highlight-color);
-            }
-        }
+    & .node-card h3 {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+    }
+
+    & .node-card p {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        line-height: 1.4;
+    }
+
+    & .node-card:hover {
+        background: var(--hover-bg);
+        color: var(--text-primary);
+        box-shadow: var(--shadow-drop);
+    }
+
+    & .node-card:hover h3 {
+        color: var(--highlight-color);
+        transition: all var(--transition-speed);
+    }
+
+    & .node-card:active {
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+        box-shadow: var(--shadow-inset);
     }
 }
 
@@ -306,4 +372,103 @@ body::before {
         width: 0%;
         transition: width 0.15s ease-out;
     }
+}
+
+.btn-danger {
+    background: var(--bg-tertiary);
+    color: var(--danger-color);
+    border: 1px solid var(--border-color);
+    font-family: var(--font-mono);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.6rem;
+    box-shadow: var(--shadow-drop);
+    transition: var(--transition-speed);
+
+    &:hover {
+        background: var(--hover-bg);
+        color: var(--text-primary);
+    }
+
+    &:active {
+        background: var(--bg-tertiary);
+        color: var(--text-muted);
+        box-shadow: var(--shadow-inset);
+    }
+}
+
+/* Lucide SECURE icons */
+.icon-inline,
+.icon-card {
+    display: inline-block;
+    vertical-align: middle;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.35em;
+    color: inherit;
+    stroke: currentColor;
+    flex-shrink: 0;
+}
+
+.icon-card {
+    margin-right: 0.5em;
+}
+
+.icon-sm {
+    width: 0.85em;
+    height: 0.85em;
+}
+
+.icon-md {
+    width: 1.2em;
+    height: 1.2em;
+    margin-right: 0.4em;
+}
+
+.icon-lg {
+    width: 1.45em;
+    height: 1.45em;
+    margin-right: 0.45em;
+}
+
+/* Większe ikony w wybranych miejscach */
+.sys-bar .icon-inline {
+    width: 1.2em;
+    height: 1.2em;
+    margin-right: 0.4em;
+}
+
+#bootScreen .icon-inline {
+    width: 1.5em;
+    height: 1.5em;
+    margin-right: 0.5em;
+}
+
+.auth-box h1 .icon-inline {
+    width: 1.35em;
+    height: 1.35em;
+    margin-right: 0.45em;
+}
+
+.auth-box button .icon-inline {
+    width: 1.15em;
+    height: 1.15em;
+    margin-right: 0.4em;
+}
+
+.hub-grid .node-card h3 .icon-card {
+    width: 1.3em;
+    height: 1.3em;
+    margin-right: 0.5em;
+    color: var(--text-muted);
+}
+
+#hubView .icon-inline {
+    width: 1.15em;
+    height: 1.15em;
+    margin-right: 0.4em;
+}
+
+.node-card:hover h3 .icon-card {
+    color: var(--highlight-color);
 }
