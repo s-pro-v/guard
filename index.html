@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet" />
     <title>LKS_SECURE_HUB // CORE_V4.6</title>
     <link rel="stylesheet" href="index.css">
 </head>
@@ -41,19 +43,20 @@
                     <button onclick="logout()"
                         style="background: none; border: 1px solid var(--border-color); color: var(--danger-color); font-size: 0.6rem; padding: 4px 10px; cursor: pointer;">TERMINATE_SESSION</button>
                 </div>
-                <div class="hub-grid">
-                    <div class="node-card" id="mainNode" data-url="https://linkosi.carrd.co">
+                <div class="hub-grid" id="hubGrid">
+                    <a class="node-card" id="mainNode" href="https://linkosi.carrd.co"
+                        data-url="https://linkosi.carrd.co">
                         <h3>Personal Interface</h3>
                         <p>Główny profil użytkownika Linkosi. Status połączenia: Oczekujący.</p>
-                    </div>
-                    <div class="node-card" data-url="https://vs-note.carrd.co/">
+                    </a>
+                    <a class="node-card" href="https://vs-note.carrd.co" data-url="https://vs-note.carrd.co">
                         <h3>Terminal: Notatnik</h3>
                         <p>VsTERMINAL – notatnik, operacje tekstowe, moduł edycji. SYSTEM_READY.</p>
-                    </div>
-                    <div class="node-card" data-url="https://editor-vs.carrd.co/">
+                    </a>
+                    <a class="node-card" href="https://editor-vs.carrd.co" data-url="https://editor-vs.carrd.co">
                         <h3>Cyber Dev // Web Stack</h3>
                         <p>Monaco Stack – edytor kodu, projekty, build. WEB_KERNEL.</p>
-                    </div>
+                    </a>
                 </div>
             </div>
         </main>
