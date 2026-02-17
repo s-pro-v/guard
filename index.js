@@ -1,21 +1,6 @@
-// XOR + hex decode (SECRET_KEY i hasło zakodowane)
-function decodeSecret(hexStr, key) {
-    var out = [];
-    for (var i = 0; i < hexStr.length; i += 2) {
-        out.push(parseInt(hexStr.substr(i, 2), 16));
-    }
-    var s = "";
-    for (var j = 0; j < out.length; j++) {
-        s += String.fromCharCode(out[j] ^ key.charCodeAt(j % key.length));
-    }
-    return s;
-}
-
 const CONFIG = {
-    KEY_ENC: "1b0c42",       // wg5 zakodowane kluczem lks
-    SECRET_ENC: "1603581e19044554",  // admin123 zakodowane kluczem wg5
-    get SECRET_KEY() { return decodeSecret(this.KEY_ENC, "lks"); },
-    get SECRET() { return decodeSecret(this.SECRET_ENC, this.SECRET_KEY); },
+    SECRET_ENC: "YWRtaW4xMjM=",
+    get SECRET() { try { return atob(this.SECRET_ENC); } catch (e) { return ""; } },
     SESSION_KEY: "lks_vault_auth",
     CARDS_URL: "https://raw.githubusercontent.com/s-pro-v/json-lista/refs/heads/main/card.json"
 };
@@ -227,8 +212,19 @@ function showHub() {
     addLog("SESJA_AKTYWNA: Węzły odblokowane.", "success");
 }
 
+function decodeInputKey(raw) {
+    var s = (raw || "").trim();
+    if (!s) return "";
+    try {
+        return atob(s);
+    } catch (e) {
+        return s;
+    }
+}
+
 function handleAuth() {
-    if (dom.input.value === CONFIG.SECRET) {
+    var entered = decodeInputKey(dom.input.value);
+    if (entered === CONFIG.SECRET) {
         addLog("Autoryzacja OK. Generowanie tokena...", "success");
         localStorage.setItem(CONFIG.SESSION_KEY, "true");
         setTimeout(showHub, 600);
