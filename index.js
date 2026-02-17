@@ -1,5 +1,21 @@
+// XOR + hex decode (SECRET_KEY i hasło zakodowane)
+function decodeSecret(hexStr, key) {
+    var out = [];
+    for (var i = 0; i < hexStr.length; i += 2) {
+        out.push(parseInt(hexStr.substr(i, 2), 16));
+    }
+    var s = "";
+    for (var j = 0; j < out.length; j++) {
+        s += String.fromCharCode(out[j] ^ key.charCodeAt(j % key.length));
+    }
+    return s;
+}
+
 const CONFIG = {
-    SECRET: "admin123",
+    KEY_ENC: "1b0c42",       // wg5 zakodowane kluczem lks
+    SECRET_ENC: "1603581e19044554",  // admin123 zakodowane kluczem wg5
+    get SECRET_KEY() { return decodeSecret(this.KEY_ENC, "lks"); },
+    get SECRET() { return decodeSecret(this.SECRET_ENC, this.SECRET_KEY); },
     SESSION_KEY: "lks_vault_auth",
     CARDS_URL: "https://raw.githubusercontent.com/s-pro-v/json-lista/refs/heads/main/card.json"
 };
@@ -121,12 +137,14 @@ function renderHubGrid(cards) {
         a.href = url;
         a.setAttribute("data-url", url);
         a.innerHTML =
+            "<div class=\"node-card-header\">" +
             "<span class=\"node-card-favicon-wrap\">" +
             "<img class=\"node-card-favicon\" alt=\"\" />" +
             "<span class=\"node-card-favicon-fallback\"></span>" +
             "</span>" +
             "<h3>" + escapeHtml(title) + "</h3>" +
-            "<p>" + escapeHtml(description) + "</p>";
+            "</div>" +
+            "<div class=\"node-card-body\"><p>" + escapeHtml(description) + "</p></div>";
         grid.appendChild(a);
     });
     loadFaviconsForHub();
@@ -161,26 +179,29 @@ function addLog(msg, type = '') {
 }
 
 function runBootSequence() {
-    let p = 0;
-    let lastLogStep = -1;
-    const bootLogs = ["Moduły jądra...", "Skanowanie SEC_88...", "Tablica skrótów...", "Gotowość systemowa."];
-    const interval = setInterval(function () {
-        p += Math.floor(Math.random() * 10) + 5;
+    var p = 0;
+    var lastLogStep = 0;
+    var bootLogs = ["Moduły jądra...", "Skanowanie SEC_88...", "Tablica skrótów...", "Gotowość systemowa."];
+    var milestones = [25, 50, 75, 100];
+    var interval = setInterval(function () {
+        p += Math.floor(Math.random() * 2) + 1;
         if (p >= 100) {
             p = 100;
             clearInterval(interval);
             dom.progress.style.width = "100%";
-            addLog(bootLogs[3] || "Gotowość systemowa.", "success");
+            dom.progress.classList.add("complete");
+            addLog(bootLogs[3], "success");
             setTimeout(finalizeBoot, 500);
             return;
         }
         dom.progress.style.width = p + "%";
-        var step = Math.floor(p / 25);
-        if (step > lastLogStep && step < 4) {
-            lastLogStep = step;
-            addLog(bootLogs[step] || "Przetwarzanie...");
+        for (var i = lastLogStep; i < milestones.length; i++) {
+            if (p >= milestones[i]) {
+                addLog(bootLogs[i], i === 3 ? "success" : "");
+                lastLogStep = i + 1;
+            }
         }
-    }, 80);
+    }, 50);
 }
 
 function finalizeBoot() {
@@ -268,16 +289,3 @@ document.getElementById('hubGrid').addEventListener('click', function (e) {
 });
 dom.input.addEventListener('keydown', function (e) { if (e.key === 'Enter') handleAuth(); });
 
-function scrollToTerminal() {
-    if (!dom.terminal) return;
-    dom.terminal.scrollTop = dom.terminal.scrollHeight;
-    dom.terminal.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-var bootScrollBtn = document.getElementById('bootScrollBtn');
-if (bootScrollBtn) {
-    bootScrollBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        scrollToTerminal();
-    });
-}
