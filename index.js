@@ -1,6 +1,12 @@
 const CONFIG = {
     SECRET_ENC: "YWRtaW4xMjM=",
-    get SECRET() { try { return atob(this.SECRET_ENC); } catch (e) { return ""; } },
+    get SECRET() {
+        try {
+            return atob(this.SECRET_ENC);
+        } catch (e) {
+            return "";
+        }
+    },
     SESSION_KEY: "lks_vault_auth",
     CARDS_URL: "https://raw.githubusercontent.com/s-pro-v/json-lista/refs/heads/main/card.json"
 };
@@ -212,19 +218,18 @@ function showHub() {
     addLog("SESJA_AKTYWNA: Węzły odblokowane.", "success");
 }
 
-function decodeInputKey(raw) {
+function checkKeyMatch(raw) {
     var s = (raw || "").trim();
-    if (!s) return "";
+    if (!s) return false;
+    if (s === CONFIG.SECRET) return true;
     try {
-        return atob(s);
-    } catch (e) {
-        return s;
-    }
+        if (atob(s) === CONFIG.SECRET) return true;
+    } catch (e) {}
+    return false;
 }
 
 function handleAuth() {
-    var entered = decodeInputKey(dom.input.value);
-    if (entered === CONFIG.SECRET) {
+    if (checkKeyMatch(dom.input.value)) {
         addLog("Autoryzacja OK. Generowanie tokena...", "success");
         localStorage.setItem(CONFIG.SESSION_KEY, "true");
         setTimeout(showHub, 600);
