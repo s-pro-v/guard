@@ -290,3 +290,29 @@ document.getElementById('hubGrid').addEventListener('click', function (e) {
 });
 dom.input.addEventListener('keydown', function (e) { if (e.key === 'Enter') handleAuth(); });
 
+// Add these to your existing script section
+document.addEventListener("DOMContentLoaded", function () {
+    // Remove draggable attribute from all elements
+    document.querySelectorAll('[draggable="true"]').forEach((el) => {
+        el.removeAttribute("draggable");
+    });
+
+    // Prevent dragstart event
+    document.addEventListener("dragstart", function (e) {
+        e.preventDefault();
+        return false;
+    });
+
+    // Prevent drop event
+    document.addEventListener("drop", function (e) {
+        e.preventDefault();
+        return false;
+    });
+
+    // Prevent dragover event
+    document.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        return false;
+    });
+});
+
