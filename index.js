@@ -113,6 +113,21 @@ var DEFAULT_CARDS = [
 
 ];
 
+// Obrazek share.jpg dla .node-card-body według domeny karty
+var CARD_BODY_IMAGES = {
+    "editor-vs.carrd.co": "https://editor-vs.carrd.co/assets/images/share.jpg?v=1acb2340",
+    "vs-note.carrd.co": "https://vs-note.carrd.co/assets/images/share.jpg?v=97ba449d",
+    "previewgib.carrd.co": "https://previewgib.carrd.co/assets/images/share.jpg?v=0d5dac00",
+    "grafikdev.carrd.co": "https://grafikdev.carrd.co/assets/images/share.jpg?v=63294947",
+    "devospanel.carrd.co": "https://devospanel.carrd.co/assets/images/share.jpg?v=e72d9232",
+    "linkosi.carrd.co": "https://linkosi.carrd.co/assets/images/share.jpg?v=4271e371"
+};
+
+
+function getCardDomain(url) {
+    return (url || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+}
+
 function renderHubGrid(cards) {
     var grid = document.getElementById("hubGrid");
     if (!grid) return;
@@ -122,11 +137,17 @@ function renderHubGrid(cards) {
         var url = (item.url || item.href || "").trim();
         var title = item.title || "Node";
         var description = item.description || item.desc || "";
+        var cardImage = (item.image || item.img || "").trim();
         if (!url) return;
         var a = document.createElement("a");
         a.className = "node-card";
         a.href = url;
         a.setAttribute("data-url", url);
+        var bodyImg = cardImage
+            ? "<div class=\"node-card-image-wrap\"><img class=\"node-card-image\" src=\"" + cardImage.replace(/"/g, "&quot;") + "\" alt=\"\" /></div>"
+            : "";
+        var domain = getCardDomain(url);
+        var bodyBg = cardImage || (CARD_BODY_IMAGES[domain] || DEFAULT_CARD_BODY_IMAGE);
         a.innerHTML =
             "<div class=\"node-card-header\">" +
             "<span class=\"node-card-favicon-wrap\">" +
@@ -135,8 +156,9 @@ function renderHubGrid(cards) {
             "</span>" +
             "<h3>" + escapeHtml(title) + "</h3>" +
             "</div>" +
-            "<div class=\"node-card-body\"><p>" + escapeHtml(description) + "</p></div>";
+            "<div class=\"node-card-body\">" + bodyImg + "<p>" + escapeHtml(description) + "</p></div>";
         grid.appendChild(a);
+        a.querySelector(".node-card-body").style.backgroundImage = "url(\"" + bodyBg.replace(/"/g, "\\\"") + "\")";
     });
     loadFaviconsForHub();
 }
@@ -224,7 +246,7 @@ function checkKeyMatch(raw) {
     if (s === CONFIG.SECRET) return true;
     try {
         if (atob(s) === CONFIG.SECRET) return true;
-    } catch (e) {}
+    } catch (e) { }
     return false;
 }
 
@@ -315,4 +337,3 @@ document.addEventListener("DOMContentLoaded", function () {
         return false;
     });
 });
-
