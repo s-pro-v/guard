@@ -8,7 +8,10 @@ const CONFIG = {
         }
     },
     SESSION_KEY: "lks_vault_auth",
-    CARDS_URL: "https://raw.githubusercontent.com/s-pro-v/json-lista/refs/heads/main/card.json"
+    SESSION_DATE_KEY: "lks_vault_auth_date",
+    CARDS_URL: "https://raw.githubusercontent.com/s-pro-v/json-lista/refs/heads/main/card.json",
+    LOGOUT_PARAM: "lks_logout=1",
+    RETURN_URL_KEY: "lks_return_url"
 };
 
 const dom = {
@@ -22,6 +25,49 @@ const dom = {
 };
 
 let uptimeSec = 0;
+
+function isCurrentlyLoggedIn() {
+    var stored = localStorage.getItem(CONFIG.SESSION_KEY);
+    var storedDate = localStorage.getItem(CONFIG.SESSION_DATE_KEY);
+    var today = new Date().toDateString();
+    if (stored === "VALID" && storedDate !== today) {
+        localStorage.removeItem(CONFIG.SESSION_KEY);
+        localStorage.removeItem(CONFIG.SESSION_DATE_KEY);
+        return false;
+    }
+    return stored === "VALID" && storedDate === today;
+}
+
+function getAuthToken() {
+    return btoa(CONFIG.SECRET + "_" + new Date().getDate());
+}
+
+function receiveReturnUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var returnUrl = params.get("return_url");
+    if (returnUrl) {
+        try {
+            sessionStorage.setItem(CONFIG.RETURN_URL_KEY, returnUrl);
+            var clean = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            var rest = [];
+            params.forEach(function (val, key) {
+                if (key !== "return_url") rest.push(key + "=" + encodeURIComponent(val));
+            });
+            if (rest.length) clean += "?" + rest.join("&");
+            window.history.replaceState({}, document.title, clean);
+        } catch (e) { }
+    }
+}
+
+function sendForwardToReturnUrl() {
+    var returnUrl = sessionStorage.getItem(CONFIG.RETURN_URL_KEY);
+    if (!returnUrl) return false;
+    sessionStorage.removeItem(CONFIG.RETURN_URL_KEY);
+    var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
+    var target = returnUrl + sep + "auth=" + encodeURIComponent(getAuthToken());
+    window.location.replace(target);
+    return true;
+}
 
 // --- Favicon dla kart hub (ikony według stron) ---
 function getFaviconUrl(url) {
@@ -218,8 +264,12 @@ function runBootSequence() {
 }
 
 function finalizeBoot() {
-    if (localStorage.getItem(CONFIG.SESSION_KEY) === "true") {
+    var loggedIn = isCurrentlyLoggedIn() || localStorage.getItem(CONFIG.SESSION_KEY) === "true";
+    if (loggedIn) {
         showHub();
+        setTimeout(function () {
+            if (sendForwardToReturnUrl()) return;
+        }, 100);
     } else {
         showAuth();
     }
@@ -253,7 +303,9 @@ function checkKeyMatch(raw) {
 function handleAuth() {
     if (checkKeyMatch(dom.input.value)) {
         addLog("Autoryzacja OK. Generowanie tokena...", "success");
-        localStorage.setItem(CONFIG.SESSION_KEY, "true");
+        localStorage.setItem(CONFIG.SESSION_KEY, "VALID");
+        localStorage.setItem(CONFIG.SESSION_DATE_KEY, new Date().toDateString());
+        if (sendForwardToReturnUrl()) return;
         setTimeout(showHub, 600);
     } else {
         addLog("BŁĄD: Nieprawidłowy klucz!", "danger");
@@ -267,7 +319,7 @@ function handleAuth() {
 function connectToNode(url) {
     if (!url) return;
     url = url.replace(/\/$/, ""); // bez końcowego slasha
-    const token = btoa(CONFIG.SECRET + "_" + new Date().getDate());
+    const token = getAuthToken();
     addLog("Inicjalizacja Handshake → " + url, "success");
     const fullUrl = url + (url.indexOf("?") >= 0 ? "&" : "?") + "auth=" + encodeURIComponent(token);
     setTimeout(function () {
@@ -277,7 +329,16 @@ function connectToNode(url) {
 
 function logout() {
     localStorage.removeItem(CONFIG.SESSION_KEY);
-    location.reload();
+    localStorage.removeItem(CONFIG.SESSION_DATE_KEY);
+    // Przekieruj na pierwszą stronę z guardem z parametrem wylogowania – guard wyczyści tam sesję i odesła do hubu
+    var firstCard = document.querySelector(".node-card[data-url]");
+    var cardUrl = firstCard ? (firstCard.getAttribute("data-url") || "").trim() : "";
+    if (cardUrl) {
+        var sep = cardUrl.indexOf("?") >= 0 ? "&" : "?";
+        window.location.href = cardUrl + sep + CONFIG.LOGOUT_PARAM;
+    } else {
+        location.reload();
+    }
 }
 
 function toggleTheme() {
@@ -289,6 +350,7 @@ function toggleTheme() {
 }
 
 window.onload = function () {
+    receiveReturnUrl();
     const saved = localStorage.getItem('lks_theme') || 'dark';
     document.documentElement.setAttribute('theme', saved);
     if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
