@@ -212,19 +212,27 @@ body {
     color: var(--text-main);
     font-family: var(--font-mono);
     -webkit-font-smoothing: antialiased;
+    position: relative;
+    isolation: isolate;
 
-    /* Jak panel / stage: kolor bazowy + siatka z tokenów + lekki „halo” akcentu */
+    /* Jak panel / stage: kolor bazowy + siatka z tokenów; halo akcentu na ::before */
     background-color: var(--bg);
-    background-image:
-        radial-gradient(ellipse 100% 70% at 50% -10%, color-mix(in srgb, var(--highlight-color) 18%, transparent) 0%, transparent 52%),
-        var(--bg-grid);
-    background-size: auto, var(--bg-grid-size);
-    background-attachment: fixed, fixed;
-    background-repeat: no-repeat, repeat;
+    background-image: var(--bg-grid);
+    background-size: var(--bg-grid-size);
+    background-attachment: fixed;
 }
 
 body.lks-page-loading {
     cursor: wait;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(ellipse 100% 70% at 50% -10%, color-mix(in srgb, var(--highlight-color) 18%, transparent) 0%, transparent 52%);
 }
 
 /* Nakładka startowa (do czasu pierwszego załadowania siatki hub) */
@@ -277,6 +285,7 @@ body.lks-page-loading {
     letter-spacing: 0.35rem;
     text-transform: uppercase;
     color: var(--text-main);
+    font-family: var(--font-mono);
 }
 
 .lks-page-load__hint {
@@ -1058,8 +1067,9 @@ button {
     gap: 0.2rem;
     padding: 0.2rem;
     overflow-y: auto;
-    border: 1px solid var(--border-color);
+    /* border: 1px solid var(--border-color); */
     box-shadow: var(--shadow-inset);
+    background: var(--bg-panel);
 }
 
 .lks-card {
@@ -1125,13 +1135,29 @@ button {
         padding: 0.2rem;
         border-bottom: 1px dashed var(--border-color);
         background: var(--bg-panel-light);
+        transition: background var(--transition-speed) ease;
     }
+
+    &:hover .lks-card__head {
+        background: var(--hover-bg);
+    }
+
+    &:hover .lks-card__head h3 {
+        color: var(--text-primary);
+    }
+
+    &:hover p {
+        color: var(--text-primary);
+        background: var(--hover-bg);
+    }
+
 
     & h3 {
         font-size: 11px;
         font-weight: 700;
         letter-spacing: 0.1rem;
         text-transform: uppercase;
+        transition: color var(--transition-speed) ease;
     }
 
     & .lks-card__media {
@@ -1159,8 +1185,9 @@ button {
         color: var(--accent-primary);
         padding: 10px;
         text-transform: uppercase;
-        background: var(--bg-panel);
+        background-color: var(--bg-panel);
         margin: 0;
+        transition: all var(--transition-speed) ease;
     }
 
     & .lks-card__favicon {
@@ -1171,6 +1198,7 @@ button {
         justify-content: center;
         border: 1px solid var(--border-color);
         background: var(--bg-base);
+        transition: background var(--transition-speed) ease;
     }
 
     & .lks-card__favicon-img {

@@ -17,8 +17,12 @@ const CONFIG = {
         var t = localStorage.getItem(CONFIG.THEME_KEY);
         if (t === "light" || t === "dark") {
             document.documentElement.setAttribute("theme", t);
+        } else {
+            document.documentElement.setAttribute("theme", "dark");
         }
-    } catch (e) { }
+    } catch (e) {
+        document.documentElement.setAttribute("theme", "dark");
+    }
 })();
 
 const dom = {
@@ -107,7 +111,7 @@ function setAppPhase(phase) {
 
 function refreshStatusBar() {
     applySessionValidityToDom(getSessionTokenState());
-    var theme = document.documentElement.getAttribute("theme") || "light";
+    var theme = document.documentElement.getAttribute("theme") || "dark";
     if (dom.statusBarTheme) {
         dom.statusBarTheme.textContent = "MOTYW: " + (theme === "dark" ? "CIEMNY" : "JASNY");
     }
@@ -468,7 +472,7 @@ function connectToNode(url) {
 
 function toggleTheme() {
     var root = document.documentElement;
-    var cur = root.getAttribute("theme") || "light";
+    var cur = root.getAttribute("theme") || "dark";
     var next = cur === "dark" ? "light" : "dark";
     root.classList.add("theme-switching");
     root.setAttribute("theme", next);
