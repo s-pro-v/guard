@@ -3,7 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#121212">
+    <meta name="mobile-web-app-capable" content="yes">
     <script>
         (function () {
             try {
@@ -30,9 +32,18 @@
     <div id="pageLoadingOverlay" class="lks-page-load" role="status" aria-busy="true" aria-live="polite"
         aria-label="Ładowanie aplikacji">
         <div class="lks-page-load__panel">
-            <div class="lks-page-load__spinner" aria-hidden="true"></div>
+            <div class="lks-page-load__spinner" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
             <p class="lks-page-load__title">OXY_OS</p>
             <p class="lks-page-load__activity" id="pageLoadActivity">Inicjalizacja warstwy OXY_OS…</p>
+            <div class="lks-page-load__bar-wrap">
+                <div class="lks-page-load__bar" id="pageLoadBar" role="progressbar" aria-valuemin="0"
+                    aria-valuemax="100" aria-valuenow="0" aria-label="Postęp ładowania hubu">
+                    <div class="lks-page-load__bar-fill" id="pageLoadBarFill"></div>
+                </div>
+                <span class="lks-page-load__bar-pct" id="pageLoadBarPct" aria-hidden="true">0%</span>
+            </div>
             <p class="lks-page-load__session lks-page-load__session--bad" id="pageLoadSessionLine" role="status"></p>
             <p class="lks-page-load__hint">Nie zamykaj okna — trwa pobranie katalogu węzłów i synchronizacja stanu.</p>
         </div>

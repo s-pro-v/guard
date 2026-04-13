@@ -52,11 +52,25 @@ function pageLoadingNow() {
     return (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
 }
 
-function setPageLoadActivity(msg) {
+function setPageLoadProgress(pct) {
+    var overlay = document.getElementById("pageLoadingOverlay");
+    if (!overlay || overlay.classList.contains("lks-page-load--done")) return;
+    var p = Math.max(0, Math.min(100, Math.round(Number(pct))));
+    var fill = document.getElementById("pageLoadBarFill");
+    var bar = document.getElementById("pageLoadBar");
+    var pctEl = document.getElementById("pageLoadBarPct");
+    if (fill) fill.style.width = p + "%";
+    if (bar) bar.setAttribute("aria-valuenow", String(p));
+    if (pctEl) pctEl.textContent = p + "%";
+}
+
+/** Aktualizacja tekstu aktywności; opcjonalnie `pct` (0–100) ustawia pasek postępu. */
+function setPageLoadActivity(msg, pct) {
     var overlay = document.getElementById("pageLoadingOverlay");
     var el = document.getElementById("pageLoadActivity");
     if (!el || !overlay || overlay.classList.contains("lks-page-load--done")) return;
     el.textContent = msg;
+    if (typeof pct === "number" && !isNaN(pct)) setPageLoadProgress(pct);
 }
 
 /** Tekst na nakładce ładowania: sesja zielona = aktualna, czerwona = wymaga ponownej weryfikacji. */
@@ -84,6 +98,7 @@ function syncPageLoadSessionLine() {
 function dismissPageLoadingOverlay() {
     if (pageLoadingDismissed) return;
     pageLoadingDismissed = true;
+    setPageLoadProgress(100);
     var el = document.getElementById("pageLoadingOverlay");
     if (el) {
         el.classList.add("lks-page-load--done");
@@ -315,7 +330,7 @@ var CARD_BODY_IMAGES = {
     "vs-note.carrd.co": "https://vs-note.carrd.co/assets/images/share.jpg?v=97ba449d",
     "previewgib.carrd.co": "https://previewgib.carrd.co/assets/images/share.jpg?v=0d5dac00",
     "grafikdev.carrd.co": "https://grafikdev.carrd.co/assets/images/share.jpg?v=63294947",
-    "panelsdev.carrd.co": "https://panelsdev.carrd.co/assets/images/bg.jpg?v=e0953ecb",
+    "devospanel.carrd.co": "https://devospanel.carrd.co/assets/images/share.jpg?v=e72d9232",
     "linkosi.carrd.co": "https://linkosi.carrd.co/assets/images/share.jpg?v=4271e371"
 };
 var DEFAULT_CARD_BODY_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23181818'/%3E%3Cpath d='M0 100 L100 0' stroke='%23333' stroke-width='1'/%3E%3C/svg%3E";
@@ -376,26 +391,26 @@ function escapeHtml(text) {
 function loadHubGrid() {
     var url = CONFIG.CARDS_URL;
     pageLoadingStartedAt = pageLoadingNow();
-    setPageLoadActivity("Pobieranie katalogu kart z repozytorium…");
+    setPageLoadActivity("Pobieranie katalogu kart z repozytorium…", 22);
     syncPageLoadSessionLine();
     var safety = setTimeout(dismissPageLoadingOverlay, PAGE_LOADING_SAFETY_MS);
     fetch(url)
         .then(function (res) {
-            setPageLoadActivity("Walidacja odpowiedzi serwera i odczyt listy…");
+            setPageLoadActivity("Walidacja odpowiedzi serwera i odczyt listy…", 42);
             return res.ok ? res.json() : Promise.reject(new Error(res.status));
         })
         .then(function (data) {
-            setPageLoadActivity("Budowa siatki punktów wejścia…");
+            setPageLoadActivity("Budowa siatki punktów wejścia…", 72);
             var cards = Array.isArray(data) ? data : (data.cards || data.items || []);
             renderHubGrid(cards);
         })
         .catch(function () {
-            setPageLoadActivity("Błąd sieci — odtwarzanie lokalnej listy kart…");
+            setPageLoadActivity("Błąd sieci — odtwarzanie lokalnej listy kart…", 48);
             renderHubGrid(DEFAULT_CARDS);
             if (dom.terminal) addLog("FETCH_ERROR: Odtwarzanie listy lokalnej przerwane. Brak card.json.", "warning");
         })
         .finally(function () {
-            setPageLoadActivity("Kończenie inicjalizacji interfejsu…");
+            setPageLoadActivity("Kończenie inicjalizacji interfejsu…", 94);
             syncPageLoadSessionLine();
             clearTimeout(safety);
             var elapsed = pageLoadingNow() - pageLoadingStartedAt;
@@ -514,7 +529,7 @@ function logout() {
 window.onload = function () {
     receiveReturnUrl();
     if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
-    setPageLoadActivity("Sprawdzanie zapisu sesji i przygotowanie widoku…");
+    setPageLoadActivity("Sprawdzanie zapisu sesji i przygotowanie widoku…", 14);
     var loggedIn = isCurrentlyLoggedIn() || localStorage.getItem(CONFIG.SESSION_KEY) === "true";
     syncPageLoadSessionLine();
     loadHubGrid();
@@ -563,7 +578,7 @@ dom.input.addEventListener('keydown', function (e) {
 
 // Blokady systemowe OXY_OS
 document.addEventListener("DOMContentLoaded", function () {
-    setPageLoadActivity("Ładowanie dokumentu i modułów interfejsu…");
+    setPageLoadActivity("Ładowanie dokumentu i modułów interfejsu…", 6);
     syncPageLoadSessionLine();
     document.querySelectorAll('[draggable="true"]').forEach((el) => { el.removeAttribute("draggable"); });
     document.addEventListener("dragstart", function (e) { e.preventDefault(); return false; });
