@@ -330,7 +330,7 @@ var CARD_BODY_IMAGES = {
     "vs-note.carrd.co": "https://vs-note.carrd.co/assets/images/share.jpg?v=97ba449d",
     "previewgib.carrd.co": "https://previewgib.carrd.co/assets/images/share.jpg?v=0d5dac00",
     "grafikdev.carrd.co": "https://grafikdev.carrd.co/assets/images/share.jpg?v=63294947",
-    "devospanel.carrd.co": "https://devospanel.carrd.co/assets/images/share.jpg?v=e72d9232",
+    "panelsdev.carrd.co": "https://panelsdev.carrd.co/assets/images/bg.jpg?v=e0953ecb",
     "linkosi.carrd.co": "https://linkosi.carrd.co/assets/images/share.jpg?v=4271e371"
 };
 var DEFAULT_CARD_BODY_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23181818'/%3E%3Cpath d='M0 100 L100 0' stroke='%23333' stroke-width='1'/%3E%3C/svg%3E";
