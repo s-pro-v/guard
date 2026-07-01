@@ -259,12 +259,15 @@ function sendForwardToReturnUrl() {
     return true;
 }
 
+// Zmodyfikowana funkcja wymuszająca nową wersję favicony
 function getFaviconUrl(url) {
     var cleanUrl = url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+    var ver = "2"; // Przy kolejnej zmianie favicony, podmień "2" na "3" itd.
+    
     if (cleanUrl.indexOf("carrd.co") !== -1) {
-        return "https://" + cleanUrl + "/assets/images/favicon.png";
+        return "https://" + cleanUrl + "/assets/images/favicon.png?v=" + ver;
     }
-    return "https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://" + cleanUrl + "&size=32";
+    return "https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://" + cleanUrl + "&size=32&v=" + ver;
 }
 
 function getFirstLetter(url) {
@@ -274,24 +277,26 @@ function getFirstLetter(url) {
     } catch (e) { return "?"; }
 }
 
+// Zmodyfikowana funkcja obsługi błędów z wymuszeniem wersji
 function handleFaviconError(imgElement, url) {
     var attempt = parseInt(imgElement.dataset.attempt, 10) || 1;
     var cleanUrl = url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
     var isCarrd = cleanUrl.indexOf("carrd.co") !== -1;
+    var ver = "2"; // Tu również, podmień przy kolejnych zmianach
 
     if (isCarrd) {
         if (attempt === 1) {
-            imgElement.src = "https://" + cleanUrl + "/assets/images/apple-touch-icon.png";
+            imgElement.src = "https://" + cleanUrl + "/assets/images/apple-touch-icon.png?v=" + ver;
             imgElement.dataset.attempt = "2";
         } else if (attempt === 2) {
-            imgElement.src = "https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://" + cleanUrl + "&size=32";
+            imgElement.src = "https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://" + cleanUrl + "&size=32&v=" + ver;
             imgElement.dataset.attempt = "3";
         } else {
             showFaviconFallback(imgElement);
         }
     } else {
         if (attempt === 1) {
-            imgElement.src = "https://www.google.com/s2/favicons?domain=" + cleanUrl + "&sz=32";
+            imgElement.src = "https://www.google.com/s2/favicons?domain=" + cleanUrl + "&sz=32&v=" + ver;
             imgElement.dataset.attempt = "2";
         } else {
             showFaviconFallback(imgElement);
