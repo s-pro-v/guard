@@ -279,36 +279,74 @@ function addLog(msg, type = '') {
     dom.terminal.scrollTop = dom.terminal.scrollHeight;
 }
 
+var pendingReturnUrl = null;
+
 function receiveReturnUrl() {
     var params = new URLSearchParams(window.location.search);
-    var returnUrl = params.get("return_url");
+    var returnUrl = params.get("return_url") || params.get("redirect") || params.get("r");
+    
+    // Jeśli nie ma w parametrach URL, sprawdź pamięć sesji
+    if (!returnUrl) {
+        try {
+            returnUrl = sessionStorage.getItem(CONFIG.RETURN_URL_KEY) || localStorage.getItem(CONFIG.RETURN_URL_KEY);
+        } catch(e) {}
+    }
+    
+    // Jeśli nadal brak, sprawdź czy użytkownik przyszedł z innej domeny (document.referrer)
+    if (!returnUrl && document.referrer) {
+        try {
+            var refUrl = new URL(document.referrer);
+            if (refUrl.host !== window.location.host) {
+                returnUrl = document.referrer;
+            }
+        } catch(e) {}
+    }
+
     if (returnUrl) {
+        pendingReturnUrl = returnUrl;
         try {
             sessionStorage.setItem(CONFIG.RETURN_URL_KEY, returnUrl);
-            if (dom.returnBanner && dom.returnUrlText) {
-                dom.returnUrlText.textContent = returnUrl;
-                dom.returnBanner.style.display = "flex";
-            }
-            var clean = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            var rest = [];
-            params.forEach(function (val, key) {
-                if (key !== "return_url") rest.push(key + "=" + encodeURIComponent(val));
-            });
-            if (rest.length) clean += "?" + rest.join("&");
-            window.history.replaceState({}, document.title, clean);
+            localStorage.setItem(CONFIG.RETURN_URL_KEY, returnUrl);
         } catch (e) { }
+
+        var banner = document.getElementById("returnBanner");
+        var bannerText = document.getElementById("returnUrlText");
+        if (banner && bannerText) {
+            bannerText.textContent = returnUrl;
+            banner.style.display = "flex";
+        }
+
+        var authSubmitBtn = document.getElementById("authBtn");
+        if (authSubmitBtn) {
+            authSubmitBtn.innerHTML = '<i data-lucide="corner-down-right" class="lks-icon" aria-hidden="true"></i> AUTORYZUJ I PRZEJDŹ DO STRONY';
+            if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
+        }
     }
 }
 
 async function sendForwardToReturnUrl(hashUsed) {
-    var returnUrl = sessionStorage.getItem(CONFIG.RETURN_URL_KEY);
+    var returnUrl = pendingReturnUrl;
+    if (!returnUrl) {
+        try {
+            returnUrl = sessionStorage.getItem(CONFIG.RETURN_URL_KEY) || localStorage.getItem(CONFIG.RETURN_URL_KEY);
+        } catch(e) {}
+    }
     if (!returnUrl) return false;
-    sessionStorage.removeItem(CONFIG.RETURN_URL_KEY);
-    addLog("REDIRECT: Generowanie tokenu SHA-256 dla węzła docelowego...", "success");
+
+    pendingReturnUrl = null;
+    try {
+        sessionStorage.removeItem(CONFIG.RETURN_URL_KEY);
+        localStorage.removeItem(CONFIG.RETURN_URL_KEY);
+    } catch(e) {}
+
+    addLog("REDIRECT: Przekierowanie do strony wywołującej: " + returnUrl, "success");
     var token = await getShaAuthToken(hashUsed);
     var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
     var target = returnUrl + sep + "auth=" + encodeURIComponent(token);
-    setTimeout(function () { window.location.replace(target); }, 400);
+    
+    setTimeout(function () {
+        window.location.href = target;
+    }, 200);
     return true;
 }
 
@@ -792,10 +830,11 @@ window.onload = function () {
     loadHubGrid();
 
     if (loggedIn) {
-        showHub();
-        setTimeout(function () {
+        if (pendingReturnUrl || sessionStorage.getItem(CONFIG.RETURN_URL_KEY) || localStorage.getItem(CONFIG.RETURN_URL_KEY)) {
             sendForwardToReturnUrl();
-        }, 100);
+            return;
+        }
+        showHub();
     } else {
         showAuth();
         if (dom.input) {
