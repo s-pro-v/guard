@@ -3,9 +3,9 @@
 const CONFIG = {
     // Rejestr dozwolonych skrótów SHA-256 (Zero-Plaintext)
     ALLOWED_HASHES: {
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": "ROOT_SYS"
+        "3cdf2dabfe18fb4d0e1f39fc86f836ed20ef0510d0f373b8071417906842bb93": "ROOT_SYS"
     },
-    DEFAULT_TARGET_HASH: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    DEFAULT_TARGET_HASH: "3cdf2dabfe18fb4d0e1f39fc86f836ed20ef0510d0f373b8071417906842bb93",
     SESSION_KEY: "lks_vault_auth",
     SESSION_DATE_KEY: "lks_vault_auth_date",
     SESSION_HASH_KEY: "lks_vault_auth_hash",
