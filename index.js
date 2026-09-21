@@ -37,7 +37,7 @@ async function computeSha256(text) {
             return Array.from(new Uint8Array(hashBuf))
                 .map(b => b.toString(16).padStart(2, "0"))
                 .join("");
-        } catch (e) {}
+        } catch (e) { }
     }
     // Awaryjna implementacja SHA-256 dla środowisk bez Web Crypto
     function rrot(v, a) { return (v >>> a) | (v << (32 - a)); }
@@ -388,6 +388,7 @@ function quickFill(secret) {
 }
 
 var activeOpenedWindows = [];
+var connectedClients = [];
 
 async function connectToNode(url) {
     if (!url) return;
@@ -398,7 +399,7 @@ async function connectToNode(url) {
     setTimeout(function () {
         try {
             var w = window.open(fullUrl, "_blank");
-            if (w) activeOpenedWindows.push(w);
+            if (w && !activeOpenedWindows.includes(w)) activeOpenedWindows.push(w);
         } catch (e) {
             window.open(fullUrl, "_blank");
         }
@@ -584,25 +585,40 @@ function logout() {
     localStorage.removeItem(CONFIG.SESSION_DATE_KEY);
     localStorage.removeItem(CONFIG.SESSION_HASH_KEY);
     localStorage.setItem("lks_vault_logout_signal", String(Date.now()));
-    addLog("SYS.LOGOUT: Klucze sesyjne i skróty SHA-256 wyczyszczone.", "warning");
+    addLog("SYS.LOGOUT: Klucze sesyjne wyczyszczone — sesja NIEAKTUALNA.", "warning");
 
-    // Rozesłanie sygnału wylogowania do wszystkich otwartych węzłów
-    activeOpenedWindows.forEach(function (w) {
+    var logoutPayload = {
+        type: "LKS_GUARD_LOGOUT",
+        valid: false,
+        status: "NIEAKTUALNA"
+    };
+
+    // 1. Rozesłanie sygnału wylogowania do wszystkich otwartych węzłów i połączonych klientów
+    var allClients = activeOpenedWindows.concat(connectedClients);
+    allClients.forEach(function (w) {
         try {
             if (w && !w.closed) {
-                w.postMessage({ type: "LKS_GUARD_LOGOUT" }, "*");
+                w.postMessage(logoutPayload, "*");
+                w.postMessage({ type: "LKS_SESSION_STATUS", valid: false, status: "NIEAKTUALNA" }, "*");
             }
-        } catch (e) {}
+        } catch (e) { }
     });
 
+    // 2. BroadcastChannel dla kart
     try {
-        window.postMessage({ type: "LKS_GUARD_LOGOUT" }, "*");
-    } catch (e) {}
+        var bc = new BroadcastChannel("lks_channel");
+        bc.postMessage(logoutPayload);
+        bc.close();
+    } catch (e) { }
+
+    try {
+        window.postMessage(logoutPayload, "*");
+    } catch (e) { }
 
     if (window.parent && window.parent !== window) {
         try {
-            window.parent.postMessage({ type: "LKS_GUARD_LOGOUT" }, "*");
-        } catch (e) {}
+            window.parent.postMessage(logoutPayload, "*");
+        } catch (e) { }
     }
 
     setTimeout(function () {
@@ -618,15 +634,21 @@ function logout() {
 // IPC Listener do integracji między oknami/kartami
 window.addEventListener("message", async function (event) {
     if (!event.data || typeof event.data !== "object") return;
-    
+
+    // Automatyczna rejestracja okna klienta, który przysłał zapytanie
+    if (event.source && event.source !== window && !connectedClients.includes(event.source)) {
+        connectedClients.push(event.source);
+    }
+
     if (event.data.type === "LKS_SESSION_CHECK") {
         var isValid = isCurrentlyLoggedIn();
         var authToken = isValid ? await getShaAuthToken() : null;
-        
+
         if (event.source && event.source.postMessage) {
             event.source.postMessage({
                 type: "LKS_SESSION_STATUS",
                 valid: isValid,
+                status: isValid ? "AKTUALNA" : "NIEAKTUALNA",
                 authToken: authToken,
                 date: new Date().toDateString()
             }, "*");
@@ -639,14 +661,14 @@ function openClientCodeModal() {
     var modal = document.getElementById('modalClientCode');
     if (!modal) return;
     var txt = document.getElementById('clientCodeSnippet');
-    
+
+    var currentHashes = JSON.stringify(Object.keys(CONFIG.ALLOWED_HASHES), null, 4);
+
     var clientJs = `<script>\n` +
         `(function(){\n` +
         `  "use strict";\n` +
         `  var HUB_URL = "https://s-pro-v.github.io/guard/";\n` +
-        `  var ALLOWED_HASHES = [\n` +
-        `    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"\n` +
-        `  ];\n` +
+        `  var ALLOWED_HASHES = ` + currentHashes + `;\n` +
         `  var SK = "lks_vault_auth", SDK = "lks_vault_auth_date";\n` +
         `  \n` +
         `  // Blokada widoku strony przed autoryzacją\n` +
@@ -657,14 +679,16 @@ function openClientCodeModal() {
         `  \n` +
         `  function doLogout() {\n` +
         `    localStorage.removeItem(SK); localStorage.removeItem(SDK);\n` +
+        `    sessionStorage.removeItem(SK);\n` +
         `    document.documentElement.style.visibility = "hidden";\n` +
         `    document.documentElement.style.opacity = "0";\n` +
         `    location.replace(HUB_URL);\n` +
         `  }\n` +
         `  \n` +
-        `  // 1. Odbiór natychmiastowego sygnału wylogowania z Huba (postMessage)\n` +
+        `  // 1. Odbiór sygnału wylogowania z Huba (postMessage)\n` +
         `  window.addEventListener("message", function(e){\n` +
-        `    if (e.data && (e.data.type === "LKS_GUARD_LOGOUT" || (e.data.type === "LKS_SESSION_STATUS" && !e.data.valid))) {\n` +
+        `    if (!e.data || typeof e.data !== "object") return;\n` +
+        `    if (e.data.type === "LKS_GUARD_LOGOUT" || (e.data.type === "LKS_SESSION_STATUS" && !e.data.valid)) {\n` +
         `      doLogout();\n` +
         `    }\n` +
         `  });\n` +
@@ -676,27 +700,22 @@ function openClientCodeModal() {
         `    }\n` +
         `  });\n` +
         `  \n` +
-        `  // 3. Ciągły mostek i sprawdzanie sesji przy powrocie na kartę\n` +
-        `  var bridge = null;\n` +
-        `  function checkSession(){\n` +
-        `    if (window.opener && !window.opener.closed) {\n` +
-        `      try { window.opener.postMessage({ type: "LKS_SESSION_CHECK" }, "*"); } catch(e){}\n` +
+        `  // 3. Ciągły Heartbeat - sprawdzanie czy Hub jest nadal zalogowany\n` +
+        `  function checkHubSession() {\n` +
+        `    if (!window.opener || window.opener.closed) {\n` +
+        `      doLogout();\n` +
+        `      return;\n` +
         `    }\n` +
-        `    if (bridge && bridge.contentWindow) {\n` +
-        `      try { bridge.contentWindow.postMessage({ type: "LKS_SESSION_CHECK" }, "*"); } catch(e){}\n` +
-        `    }\n` +
+        `    try {\n` +
+        `      window.opener.postMessage({ type: "LKS_SESSION_CHECK" }, "*");\n` +
+        `    } catch(e) {}\n` +
         `  }\n` +
-        `  window.addEventListener("focus", checkSession);\n` +
-        `  document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") checkSession(); });\n` +
-        `  setInterval(checkSession, 5000);\n` +
         `  \n` +
-        `  function initBridge(){\n` +
-        `    if (bridge || window.self !== window.top) return;\n` +
-        `    bridge = document.createElement("iframe");\n` +
-        `    bridge.style.display = "none";\n` +
-        `    bridge.src = HUB_URL;\n` +
-        `    document.body.appendChild(bridge);\n` +
-        `  }\n` +
+        `  window.addEventListener("focus", checkHubSession);\n` +
+        `  document.addEventListener("visibilitychange", function(){\n` +
+        `    if (document.visibilityState === "visible") checkHubSession();\n` +
+        `  });\n` +
+        `  setInterval(checkHubSession, 1500);\n` +
         `  \n` +
         `  async function sha256(t){\n` +
         `    if (!t) return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";\n` +
@@ -720,15 +739,17 @@ function openClientCodeModal() {
         `          var clean = location.pathname + (p.toString() ? "?" + p.toString() : "") + location.hash;\n` +
         `          history.replaceState({}, document.title, clean);\n` +
         `          unlock();\n` +
-        `          if (document.body) initBridge(); else document.addEventListener("DOMContentLoaded", initBridge);\n` +
+        `          checkHubSession();\n` +
         `          return;\n` +
         `        }\n` +
         `      }\n` +
         `    }\n` +
         `    if (sessOk()) {\n` +
-        `      unlock();\n` +
-        `      if (document.body) initBridge(); else document.addEventListener("DOMContentLoaded", initBridge);\n` +
-        `      return;\n` +
+        `      if (window.opener && !window.opener.closed) {\n` +
+        `        unlock();\n` +
+        `        checkHubSession();\n` +
+        `        return;\n` +
+        `      }\n` +
         `    }\n` +
         `    var sep = HUB_URL.indexOf("?") >= 0 ? "&" : "?";\n` +
         `    location.replace(HUB_URL + sep + "return_url=" + encodeURIComponent(location.href));\n` +
@@ -739,7 +760,6 @@ function openClientCodeModal() {
 
     if (txt) txt.value = clientJs;
     modal.classList.add('active');
-    if (window.lucide && typeof window.lucide.createIcons === "function") lucide.createIcons();
 }
 
 function closeClientCodeModal() {
