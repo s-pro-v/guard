@@ -1,11 +1,14 @@
+"use strict";
+
 const CONFIG = {
-    SECRET_ENC: "YWRtaW4xMjM=",
-    get SECRET() {
-        try { return atob(this.SECRET_ENC); }
-        catch (e) { return ""; }
+    // Rejestr dozwolonych skrótów SHA-256 (Zero-Plaintext)
+    ALLOWED_HASHES: {
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": "ROOT_SYS"
     },
+    DEFAULT_TARGET_HASH: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     SESSION_KEY: "lks_vault_auth",
     SESSION_DATE_KEY: "lks_vault_auth_date",
+    SESSION_HASH_KEY: "lks_vault_auth_hash",
     CARDS_URL: "https://raw.githubusercontent.com/s-pro-v/json-lista/refs/heads/main/card.json",
     LOGOUT_PARAM: "lks_logout=1",
     RETURN_URL_KEY: "lks_return_url",
@@ -25,6 +28,62 @@ const CONFIG = {
     }
 })();
 
+async function computeSha256(text) {
+    if (!text) return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    if (window.crypto && crypto.subtle && crypto.subtle.digest) {
+        try {
+            const buffer = new TextEncoder().encode(text);
+            const hashBuf = await crypto.subtle.digest("SHA-256", buffer);
+            return Array.from(new Uint8Array(hashBuf))
+                .map(b => b.toString(16).padStart(2, "0"))
+                .join("");
+        } catch (e) {}
+    }
+    // Awaryjna implementacja SHA-256 dla środowisk bez Web Crypto
+    function rrot(v, a) { return (v >>> a) | (v << (32 - a)); }
+    const m = Math.pow, maxW = m(2, 32), words = [], aLen = text.length * 8, hash = [], k = [];
+    let p = 0; const comp = {};
+    for (let cand = 2; p < 64; cand++) {
+        if (!comp[cand]) {
+            for (let i = 0; i < 313; i += cand) comp[i] = cand;
+            hash[p] = (m(cand, 0.5) * maxW) | 0;
+            k[p++] = (m(cand, 1 / 3) * maxW) | 0;
+        }
+    }
+    text += "\x80";
+    while ((text.length % 64) - 56) text += "\x00";
+    for (let i = 0; i < text.length; i++) words[i >> 2] |= text.charCodeAt(i) << (((3 - i) % 4) * 8);
+    words[words.length] = (aLen / maxW) | 0;
+    words[words.length] = aLen;
+    for (let j = 0; j < words.length;) {
+        const w = words.slice(j, (j += 16)), oH = hash.slice(0);
+        hash.splice(0, 8);
+        for (let i = 0; i < 64; i++) {
+            const w15 = w[i - 15], w2 = w[i - 2], a = hash[0], e = hash[4];
+            const t1 = hash[7] + (rrot(e, 6) ^ rrot(e, 11) ^ rrot(e, 25)) + ((e & hash[5]) ^ (~e & hash[6])) + k[i] + (w[i] = i < 16 ? w[i] : (w[i - 16] + (rrot(w15, 7) ^ rrot(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rrot(w2, 17) ^ rrot(w2, 19) ^ (w2 >>> 10))) | 0);
+            const t2 = (rrot(a, 2) ^ rrot(a, 13) ^ rrot(a, 22)) + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+            hash.unshift((t1 + t2) | 0);
+            hash[4] = (hash[4] + t1) | 0;
+        }
+        for (let i = 0; i < 8; i++) hash[i] = (hash[i] + oH[i]) | 0;
+    }
+    let res = "";
+    for (let i = 0; i < 8; i++) {
+        for (let i2 = 3; i2 >= 0; i2--) {
+            const byte = (hash[i] >> (i2 * 8)) & 255;
+            res += (byte < 16 ? "0" : "") + byte.toString(16);
+        }
+    }
+    return res;
+}
+
+async function getShaAuthToken(hashKey) {
+    const key = hashKey || localStorage.getItem(CONFIG.SESSION_HASH_KEY) || CONFIG.DEFAULT_TARGET_HASH;
+    const day = new Date().getDate();
+    // Oblicza skrót SHA-256(KEY_HASH + "_" + DAY)
+    return await computeSha256(key + "_" + day);
+}
+
 const dom = {
     auth: document.getElementById('authView'),
     hub: document.getElementById('hubView'),
@@ -38,14 +97,16 @@ const dom = {
     statusBarTheme: document.getElementById('statusBarTheme'),
     statusBarLed: document.getElementById('statusBarLed'),
     statusBarSession: document.getElementById('statusBarSession'),
-    footSessionState: document.getElementById('footSessionState')
+    footSessionState: document.getElementById('footSessionState'),
+    shaLive: document.getElementById('shaLivePreview'),
+    returnBanner: document.getElementById('returnBanner'),
+    returnUrlText: document.getElementById('returnUrlText')
 };
 
 let hubNodeCount = 0;
 var pageLoadingDismissed = false;
 var pageLoadingStartedAt = 0;
-/** Minimalny czas widoczności nakładki (ms), niezależnie od szybkości fetch. */
-var PAGE_LOADING_MIN_MS = 3200;
+var PAGE_LOADING_MIN_MS = 2400;
 var PAGE_LOADING_SAFETY_MS = 20000;
 
 function pageLoadingNow() {
@@ -64,7 +125,6 @@ function setPageLoadProgress(pct) {
     if (pctEl) pctEl.textContent = p + "%";
 }
 
-/** Aktualizacja tekstu aktywności; opcjonalnie `pct` (0–100) ustawia pasek postępu. */
 function setPageLoadActivity(msg, pct) {
     var overlay = document.getElementById("pageLoadingOverlay");
     var el = document.getElementById("pageLoadActivity");
@@ -73,7 +133,6 @@ function setPageLoadActivity(msg, pct) {
     if (typeof pct === "number" && !isNaN(pct)) setPageLoadProgress(pct);
 }
 
-/** Tekst na nakładce ładowania: sesja zielona = aktualna, czerwona = wymaga ponownej weryfikacji. */
 function syncPageLoadSessionLine() {
     var overlay = document.getElementById("pageLoadingOverlay");
     var el = document.getElementById("pageLoadSessionLine");
@@ -82,14 +141,12 @@ function syncPageLoadSessionLine() {
     el.classList.remove("lks-page-load__session--ok", "lks-page-load__session--bad");
     if (s.kind === "ok") {
         el.classList.add("lks-page-load__session--ok");
-        el.textContent = "Sesja LKS jest aktualna (na dziś) — możesz kontynuować po zakończeniu ładowania.";
+        el.textContent = "Sesja LKS jest aktualna (SHA-256) — możesz kontynuować po zakończeniu ładowania.";
     } else {
         el.classList.add("lks-page-load__session--bad");
         var bad = {
-            expired: "Sesja wygasła — wymagana ponowna weryfikacja kluczem LKS.",
-            legacy: "Nieaktualny zapis sesji — wymagana ponowna weryfikacja kluczem LKS.",
-            unknown: "Nierozpoznany zapis sesji — wymagana ponowna weryfikacja kluczem LKS.",
-            none: "Brak zapisanej sesji — po załadowaniu wymagana weryfikacja kluczem LKS."
+            expired: "Sesja dzienna wygasła — wymagana ponowna weryfikacja kluczem SHA-256.",
+            none: "Brak aktywnej sesji — po załadowaniu wymagana weryfikacja kluczem SHA-256."
         };
         el.textContent = bad[s.kind] || bad.none;
     }
@@ -154,12 +211,12 @@ function isCurrentlyLoggedIn() {
     if (stored === "VALID" && storedDate !== today) {
         localStorage.removeItem(CONFIG.SESSION_KEY);
         localStorage.removeItem(CONFIG.SESSION_DATE_KEY);
+        localStorage.removeItem(CONFIG.SESSION_HASH_KEY);
         return false;
     }
     return stored === "VALID" && storedDate === today;
 }
 
-/** Stan zapisu w localStorage (bez czyszczenia) — do komunikatów w UI. */
 function getSessionTokenState() {
     var stored = null;
     var storedDate = null;
@@ -171,9 +228,9 @@ function getSessionTokenState() {
     if (stored === "VALID" && storedDate === today) {
         return {
             kind: "ok",
-            statusText: "SESJA_LKS: AKTUALNA",
+            statusText: "SESJA_LKS: AKTUALNA (SHA-256)",
             footText: "AKTUALNA",
-            title: "Sesja w przeglądarce jest na dziś: zapis VALID i dzisiejsza data. Token do węzłów jest aktualny."
+            title: "Sesja w przeglądarce jest aktywna na dziś. Token SHA-256 jest ważny."
         };
     }
     if (stored === "VALID" && storedDate && storedDate !== today) {
@@ -181,35 +238,19 @@ function getSessionTokenState() {
             kind: "expired",
             statusText: "SESJA_LKS: WYGASŁA",
             footText: "WYGASŁA",
-            title: "Data zapisu (" + storedDate + ") nie jest dzisiejsza. Zaloguj się ponownie kluczem LKS."
-        };
-    }
-    if (stored === "true") {
-        return {
-            kind: "legacy",
-            statusText: "SESJA_LKS: STARY_ZAPIS",
-            footText: "STARY_ZAPIS",
-            title: "Stary format zapisu sesji. Zalecane ponowne logowanie, aby uzyskać pełny zapis VALID z datą."
-        };
-    }
-    if (stored) {
-        return {
-            kind: "unknown",
-            statusText: "SESJA_LKS: NIEZNANA",
-            footText: "NIEZNANA",
-            title: "Nierozpoznany zapis klucza sesji. Wyczyść dane witryny lub zaloguj się ponownie."
+            title: "Data zapisu nie jest dzisiejsza. Zaloguj się ponownie wektorem SHA-256."
         };
     }
     return {
         kind: "none",
         statusText: "SESJA_LKS: BRAK",
         footText: "BRAK",
-        title: "Brak zapisanej sesji LKS w tej przeglądarce."
+        title: "Brak aktywnej sesji LKS."
     };
 }
 
 function applySessionValidityToDom(s) {
-    var kinds = ["ok", "expired", "legacy", "none", "unknown"];
+    var kinds = ["ok", "expired", "none"];
     if (dom.statusBarSession) {
         dom.statusBarSession.textContent = s.statusText;
         dom.statusBarSession.setAttribute("title", s.title);
@@ -228,8 +269,14 @@ function applySessionValidityToDom(s) {
     }
 }
 
-function getAuthToken() {
-    return btoa(CONFIG.SECRET + "_" + new Date().getDate());
+function addLog(msg, type = '') {
+    if (!dom.terminal) return;
+    const line = document.createElement('div');
+    line.className = 'lks-log__line ' + type;
+    const time = new Date().toISOString().split('T')[1].slice(0, -1);
+    line.textContent = time + " :: " + msg;
+    dom.terminal.appendChild(line);
+    dom.terminal.scrollTop = dom.terminal.scrollHeight;
 }
 
 function receiveReturnUrl() {
@@ -238,6 +285,10 @@ function receiveReturnUrl() {
     if (returnUrl) {
         try {
             sessionStorage.setItem(CONFIG.RETURN_URL_KEY, returnUrl);
+            if (dom.returnBanner && dom.returnUrlText) {
+                dom.returnUrlText.textContent = returnUrl;
+                dom.returnBanner.style.display = "flex";
+            }
             var clean = window.location.protocol + "//" + window.location.host + window.location.pathname;
             var rest = [];
             params.forEach(function (val, key) {
@@ -249,21 +300,115 @@ function receiveReturnUrl() {
     }
 }
 
-function sendForwardToReturnUrl() {
+async function sendForwardToReturnUrl(hashUsed) {
     var returnUrl = sessionStorage.getItem(CONFIG.RETURN_URL_KEY);
     if (!returnUrl) return false;
     sessionStorage.removeItem(CONFIG.RETURN_URL_KEY);
+    addLog("REDIRECT: Generowanie tokenu SHA-256 dla węzła docelowego...", "success");
+    var token = await getShaAuthToken(hashUsed);
     var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
-    var target = returnUrl + sep + "auth=" + encodeURIComponent(getAuthToken());
-    window.location.replace(target);
+    var target = returnUrl + sep + "auth=" + encodeURIComponent(token);
+    setTimeout(function () { window.location.replace(target); }, 400);
     return true;
 }
 
-// Zmodyfikowana funkcja wymuszająca nową wersję favicony
+async function handleAuth() {
+    var raw = (dom.input ? dom.input.value : "").trim();
+    if (!raw) {
+        addLog("ERR_AUTH: Proszę wprowadzić wektor inicjalizacyjny!", "danger");
+        return;
+    }
+
+    var inputHash = await computeSha256(raw);
+    var role = CONFIG.ALLOWED_HASHES[inputHash];
+
+    if (role) {
+        addLog(`AUTH_SUCCESS: Klucz poprawny. Rola: [${role}]. Suma SHA-256 zweryfikowana.`, "success");
+        localStorage.setItem(CONFIG.SESSION_KEY, "VALID");
+        localStorage.setItem(CONFIG.SESSION_DATE_KEY, new Date().toDateString());
+        localStorage.setItem(CONFIG.SESSION_HASH_KEY, inputHash);
+
+        var hasRedirected = await sendForwardToReturnUrl(inputHash);
+        if (hasRedirected) return;
+
+        setTimeout(showHub, 500);
+    } else {
+        addLog("ERR_ACCESS_DENIED: Niezgodność sumy kontrolnej SHA-256!", "danger");
+        if (dom.input) {
+            dom.input.value = "";
+            updateLiveSha();
+        }
+        var container = document.getElementById('mainContainer');
+        if (container) container.classList.add("lks-frame--access-denied");
+        if (dom.statusBarMode) dom.statusBarMode.textContent = "SESJA: ODMOWA_DOSTĘPU";
+        if (dom.statusBarLed) {
+            dom.statusBarLed.classList.remove("lks-statusbar__led--hub");
+            dom.statusBarLed.classList.add("lks-statusbar__led--denied");
+        }
+        setTimeout(function () {
+            if (container) container.classList.remove("lks-frame--access-denied");
+            refreshStatusBar();
+        }, 450);
+    }
+}
+
+function showAuth() {
+    setAppPhase(1);
+    if (dom.auth) dom.auth.classList.add('active');
+    if (dom.hub) dom.hub.classList.remove('active');
+    addLog("SYS.BOOT: Oczekiwanie na identyfikację kryptograficzną SHA-256...", "warning");
+}
+
+function showHub() {
+    setAppPhase(2);
+    if (dom.auth) dom.auth.classList.remove('active');
+    if (dom.hub) dom.hub.classList.add('active');
+    var storedHash = localStorage.getItem(CONFIG.SESSION_HASH_KEY);
+    var role = CONFIG.ALLOWED_HASHES[storedHash] || "2_ADMIN";
+    if (dom.lvl) {
+        dom.lvl.textContent = role;
+        dom.lvl.classList.remove("lks-footbar__auth--guest");
+        dom.lvl.classList.add("lks-footbar__auth--admin");
+    }
+    addLog("AUTH.SESSION_ONLINE: Panel Hub aktywny.", "success");
+}
+
+async function updateLiveSha() {
+    if (!dom.shaLive || !dom.input) return;
+    var val = dom.input.value;
+    var h = await computeSha256(val);
+    dom.shaLive.textContent = h;
+}
+
+function quickFill(secret) {
+    if (dom.input) {
+        dom.input.value = secret;
+        updateLiveSha();
+    }
+}
+
+var activeOpenedWindows = [];
+
+async function connectToNode(url) {
+    if (!url) return;
+    url = url.replace(/\/$/, "");
+    var token = await getShaAuthToken();
+    addLog("HANDSHAKE_SHA256 → " + url, "success");
+    var fullUrl = url + (url.indexOf("?") >= 0 ? "&" : "?") + "auth=" + encodeURIComponent(token);
+    setTimeout(function () {
+        try {
+            var w = window.open(fullUrl, "_blank");
+            if (w) activeOpenedWindows.push(w);
+        } catch (e) {
+            window.open(fullUrl, "_blank");
+        }
+    }, 300);
+}
+
+// Favicon helpers
 function getFaviconUrl(url) {
     var cleanUrl = url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
-    var ver = "2"; // Przy kolejnej zmianie favicony, podmień "2" na "3" itd.
-    
+    var ver = "3";
     if (cleanUrl.indexOf("carrd.co") !== -1) {
         return "https://" + cleanUrl + "/assets/images/favicon.png?v=" + ver;
     }
@@ -277,12 +422,11 @@ function getFirstLetter(url) {
     } catch (e) { return "?"; }
 }
 
-// Zmodyfikowana funkcja obsługi błędów z wymuszeniem wersji
 function handleFaviconError(imgElement, url) {
     var attempt = parseInt(imgElement.dataset.attempt, 10) || 1;
     var cleanUrl = url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
     var isCarrd = cleanUrl.indexOf("carrd.co") !== -1;
-    var ver = "2"; // Tu również, podmień przy kolejnych zmianach
+    var ver = "3";
 
     if (isCarrd) {
         if (attempt === 1) {
@@ -328,20 +472,14 @@ function loadFaviconsForHub() {
     });
 }
 
-var DEFAULT_CARDS = [];
-
-var CARD_BODY_IMAGES = {
-    "editor-vs.carrd.co": "https://editor-vs.carrd.co/assets/images/share.jpg?v=1acb2340",
-    "vs-note.carrd.co": "https://vs-note.carrd.co/assets/images/share.jpg?v=97ba449d",
-    "previewgib.carrd.co": "https://previewgib.carrd.co/assets/images/share.jpg?v=0d5dac00",
-    "grafikdev.carrd.co": "https://grafikdev.carrd.co/assets/images/share.jpg?v=63294947",
-    "panelsdev.carrd.co": "https://panelsdev.carrd.co/assets/images/bg.jpg?v=e0953ecb",
-    "linkosi.carrd.co": "https://linkosi.carrd.co/assets/images/share.jpg?v=0087608e"
-};
-var DEFAULT_CARD_BODY_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23181818'/%3E%3Cpath d='M0 100 L100 0' stroke='%23333' stroke-width='1'/%3E%3C/svg%3E";
-
 function getCardDomain(url) {
     return (url || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+}
+
+function escapeHtml(text) {
+    var div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function renderHubGrid(cards) {
@@ -367,13 +505,12 @@ function renderHubGrid(cards) {
         a.href = url;
         a.setAttribute("data-url", url);
 
-        var domain = getCardDomain(url);
-        var bodyBg = cardImage || (CARD_BODY_IMAGES[domain] || DEFAULT_CARD_BODY_IMAGE);
+        var bodyBg = cardImage || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23181818'/%3E%3Cpath d='M0 100 L100 0' stroke='%23333' stroke-width='1'/%3E%3C/svg%3E";
 
         a.innerHTML =
             "<div class=\"lks-card__head\">" +
             "<div class=\"lks-card__favicon\">" +
-            "<img class=\"lks-card__favicon-img\" alt=\"\" />" +
+            "<img class=\"lks-card__favicon-img\" alt=\"\" src=\"" + getFaviconUrl(url) + "\" />" +
             "<span class=\"lks-card__favicon-fallback\"></span>" +
             "</div>" +
             "<h3>" + escapeHtml(title) + "</h3>" +
@@ -387,107 +524,36 @@ function renderHubGrid(cards) {
     refreshStatusBar();
 }
 
-function escapeHtml(text) {
-    var div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 function loadHubGrid() {
     var url = CONFIG.CARDS_URL;
     pageLoadingStartedAt = pageLoadingNow();
-    setPageLoadActivity("Pobieranie katalogu kart z repozytorium…", 22);
+    setPageLoadActivity("Pobieranie katalogu węzłów i sum SHA-256…", 30);
     syncPageLoadSessionLine();
     var safety = setTimeout(dismissPageLoadingOverlay, PAGE_LOADING_SAFETY_MS);
+
     fetch(url)
         .then(function (res) {
-            setPageLoadActivity("Walidacja odpowiedzi serwera i odczyt listy…", 42);
+            setPageLoadActivity("Walidacja odpowiedzi serwera i odczyt listy…", 50);
             return res.ok ? res.json() : Promise.reject(new Error(res.status));
         })
         .then(function (data) {
-            setPageLoadActivity("Budowa siatki punktów wejścia…", 72);
+            setPageLoadActivity("Budowa punktów wejścia OXY_OS…", 75);
             var cards = Array.isArray(data) ? data : (data.cards || data.items || []);
             renderHubGrid(cards);
         })
         .catch(function () {
-            setPageLoadActivity("Błąd sieci — odtwarzanie lokalnej listy kart…", 48);
-            renderHubGrid(DEFAULT_CARDS);
-            if (dom.terminal) addLog("FETCH_ERROR: Odtwarzanie listy lokalnej przerwane. Brak card.json.", "warning");
+            setPageLoadActivity("Błąd sieci — brak węzłów card.json…", 50);
+            renderHubGrid([]);
+            if (dom.terminal) addLog("FETCH_ERR: Nie udało się pobrać card.json.", "warning");
         })
         .finally(function () {
-            setPageLoadActivity("Kończenie inicjalizacji interfejsu…", 94);
+            setPageLoadActivity("Inicjalizacja kryptograficzna zakończona.", 100);
             syncPageLoadSessionLine();
             clearTimeout(safety);
             var elapsed = pageLoadingNow() - pageLoadingStartedAt;
             var wait = Math.max(0, PAGE_LOADING_MIN_MS - elapsed);
             setTimeout(dismissPageLoadingOverlay, wait);
         });
-}
-
-function addLog(msg, type = '') {
-    const line = document.createElement('div');
-    line.className = 'lks-log__line ' + type;
-    const time = new Date().toISOString().split('T')[1].slice(0, -1);
-    line.textContent = time + " :: " + msg;
-    dom.terminal.appendChild(line);
-    dom.terminal.scrollTop = dom.terminal.scrollHeight;
-}
-
-function showAuth() {
-    setAppPhase(1);
-    dom.auth.classList.add('active');
-    addLog("SYS.BOOT: Oczekiwanie na klucz szyfrujący OXY_OS...", "warning");
-}
-
-function showHub() {
-    setAppPhase(2);
-    dom.auth.classList.remove('active');
-    dom.hub.classList.add('active');
-    dom.lvl.textContent = "2_ADMIN";
-    dom.lvl.classList.remove("lks-footbar__auth--guest");
-    dom.lvl.classList.add("lks-footbar__auth--admin");
-    addLog("AUTH.SUCCESS: Ustanowiono bezpieczne połączenie węzłów.", "success");
-}
-
-function checkKeyMatch(raw) {
-    var s = (raw || "").trim();
-    if (!s) return false;
-    if (s === CONFIG.SECRET) return true;
-    try { if (atob(s) === CONFIG.SECRET) return true; } catch (e) { }
-    return false;
-}
-
-function handleAuth() {
-    if (checkKeyMatch(dom.input.value)) {
-        addLog("VALIDATING_KEY: OK. Odszyfrowywanie...", "success");
-        localStorage.setItem(CONFIG.SESSION_KEY, "VALID");
-        localStorage.setItem(CONFIG.SESSION_DATE_KEY, new Date().toDateString());
-        if (sendForwardToReturnUrl()) return;
-        setTimeout(showHub, 600);
-    } else {
-        addLog("ERR_ACCESS_DENIED: Niewłaściwy wektor inicjalizacyjny!", "danger");
-        dom.input.value = "";
-        const container = document.getElementById('mainContainer');
-        container.classList.add("lks-frame--access-denied");
-        if (dom.statusBarMode) dom.statusBarMode.textContent = "SESJA: ODMOWA_DOSTĘPU";
-        if (dom.statusBarLed) {
-            dom.statusBarLed.classList.remove("lks-statusbar__led--hub");
-            dom.statusBarLed.classList.add("lks-statusbar__led--denied");
-        }
-        setTimeout(function () {
-            container.classList.remove("lks-frame--access-denied");
-            refreshStatusBar();
-        }, 400);
-    }
-}
-
-function connectToNode(url) {
-    if (!url) return;
-    url = url.replace(/\/$/, "");
-    const token = getAuthToken();
-    addLog("HANDSHAKE_INIT → " + url, "success");
-    const fullUrl = url + (url.indexOf("?") >= 0 ? "&" : "?") + "auth=" + encodeURIComponent(token);
-    setTimeout(function () { window.open(fullUrl, "_blank", "noopener,noreferrer"); }, 400);
 }
 
 function toggleTheme() {
@@ -516,33 +582,199 @@ function toggleTheme() {
 function logout() {
     localStorage.removeItem(CONFIG.SESSION_KEY);
     localStorage.removeItem(CONFIG.SESSION_DATE_KEY);
-    addLog("SYS.LOGOUT: Czyszczenie pamięci podręcznej i tokenów...", "warning");
+    localStorage.removeItem(CONFIG.SESSION_HASH_KEY);
+    localStorage.setItem("lks_vault_logout_signal", String(Date.now()));
+    addLog("SYS.LOGOUT: Klucze sesyjne i skróty SHA-256 wyczyszczone.", "warning");
 
-    var firstCard = document.querySelector(".lks-card[data-url]");
-    var cardUrl = firstCard ? (firstCard.getAttribute("data-url") || "").trim() : "";
+    // Rozesłanie sygnału wylogowania do wszystkich otwartych węzłów
+    activeOpenedWindows.forEach(function (w) {
+        try {
+            if (w && !w.closed) {
+                w.postMessage({ type: "LKS_GUARD_LOGOUT" }, "*");
+            }
+        } catch (e) {}
+    });
 
-    setTimeout(() => {
-        if (cardUrl) {
-            var sep = cardUrl.indexOf("?") >= 0 ? "&" : "?";
-            window.location.href = cardUrl + sep + CONFIG.LOGOUT_PARAM;
-        } else {
-            location.reload();
+    try {
+        window.postMessage({ type: "LKS_GUARD_LOGOUT" }, "*");
+    } catch (e) {}
+
+    if (window.parent && window.parent !== window) {
+        try {
+            window.parent.postMessage({ type: "LKS_GUARD_LOGOUT" }, "*");
+        } catch (e) {}
+    }
+
+    setTimeout(function () {
+        showAuth();
+        refreshStatusBar();
+        if (dom.input) {
+            dom.input.value = "";
+            updateLiveSha();
         }
-    }, 500);
+    }, 350);
 }
 
+// IPC Listener do integracji między oknami/kartami
+window.addEventListener("message", async function (event) {
+    if (!event.data || typeof event.data !== "object") return;
+    
+    if (event.data.type === "LKS_SESSION_CHECK") {
+        var isValid = isCurrentlyLoggedIn();
+        var authToken = isValid ? await getShaAuthToken() : null;
+        
+        if (event.source && event.source.postMessage) {
+            event.source.postMessage({
+                type: "LKS_SESSION_STATUS",
+                valid: isValid,
+                authToken: authToken,
+                date: new Date().toDateString()
+            }, "*");
+        }
+    }
+});
+
+// MODAL KODU KLIENTA DLA STRON (LKS GUARD)
+function openClientCodeModal() {
+    var modal = document.getElementById('modalClientCode');
+    if (!modal) return;
+    var txt = document.getElementById('clientCodeSnippet');
+    
+    var clientJs = `<script>\n` +
+        `(function(){\n` +
+        `  "use strict";\n` +
+        `  var HUB_URL = "https://s-pro-v.github.io/guard/";\n` +
+        `  var ALLOWED_HASHES = [\n` +
+        `    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"\n` +
+        `  ];\n` +
+        `  var SK = "lks_vault_auth", SDK = "lks_vault_auth_date";\n` +
+        `  \n` +
+        `  // Blokada widoku strony przed autoryzacją\n` +
+        `  var s = document.createElement("style");\n` +
+        `  s.id = "lks-lock"; s.textContent = "html { visibility: hidden !important; opacity: 0 !important; }";\n` +
+        `  document.documentElement.appendChild(s);\n` +
+        `  function unlock() { var el = document.getElementById("lks-lock"); if (el) el.remove(); document.documentElement.style.visibility = ""; document.documentElement.style.opacity = ""; }\n` +
+        `  \n` +
+        `  function doLogout() {\n` +
+        `    localStorage.removeItem(SK); localStorage.removeItem(SDK);\n` +
+        `    document.documentElement.style.visibility = "hidden";\n` +
+        `    document.documentElement.style.opacity = "0";\n` +
+        `    location.replace(HUB_URL);\n` +
+        `  }\n` +
+        `  \n` +
+        `  // 1. Odbiór natychmiastowego sygnału wylogowania z Huba (postMessage)\n` +
+        `  window.addEventListener("message", function(e){\n` +
+        `    if (e.data && (e.data.type === "LKS_GUARD_LOGOUT" || (e.data.type === "LKS_SESSION_STATUS" && !e.data.valid))) {\n` +
+        `      doLogout();\n` +
+        `    }\n` +
+        `  });\n` +
+        `  \n` +
+        `  // 2. Wykrywanie wylogowania w tej samej domenie (zdarzenie storage)\n` +
+        `  window.addEventListener("storage", function(e){\n` +
+        `    if ((e.key === SK && e.newValue !== "VALID") || e.key === "lks_vault_logout_signal") {\n` +
+        `      doLogout();\n` +
+        `    }\n` +
+        `  });\n` +
+        `  \n` +
+        `  // 3. Ciągły mostek i sprawdzanie sesji przy powrocie na kartę\n` +
+        `  var bridge = null;\n` +
+        `  function checkSession(){\n` +
+        `    if (window.opener && !window.opener.closed) {\n` +
+        `      try { window.opener.postMessage({ type: "LKS_SESSION_CHECK" }, "*"); } catch(e){}\n` +
+        `    }\n` +
+        `    if (bridge && bridge.contentWindow) {\n` +
+        `      try { bridge.contentWindow.postMessage({ type: "LKS_SESSION_CHECK" }, "*"); } catch(e){}\n` +
+        `    }\n` +
+        `  }\n` +
+        `  window.addEventListener("focus", checkSession);\n` +
+        `  document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") checkSession(); });\n` +
+        `  setInterval(checkSession, 5000);\n` +
+        `  \n` +
+        `  function initBridge(){\n` +
+        `    if (bridge || window.self !== window.top) return;\n` +
+        `    bridge = document.createElement("iframe");\n` +
+        `    bridge.style.display = "none";\n` +
+        `    bridge.src = HUB_URL;\n` +
+        `    document.body.appendChild(bridge);\n` +
+        `  }\n` +
+        `  \n` +
+        `  async function sha256(t){\n` +
+        `    if (!t) return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";\n` +
+        `    const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));\n` +
+        `    return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, "0")).join("");\n` +
+        `  }\n` +
+        `  function sessOk(){ return localStorage.getItem(SK) === "VALID" && localStorage.getItem(SDK) === new Date().toDateString(); }\n` +
+        `  \n` +
+        `  async function verify(){\n` +
+        `    var p = new URLSearchParams(location.search);\n` +
+        `    if (p.get("lks_logout") === "1") { doLogout(); return; }\n` +
+        `    var auth = p.get("auth");\n` +
+        `    var day = new Date().getDate();\n` +
+        `    if (auth) {\n` +
+        `      for (var i = 0; i < ALLOWED_HASHES.length; i++) {\n` +
+        `        var exp = await sha256(ALLOWED_HASHES[i] + "_" + day);\n` +
+        `        if (auth.toLowerCase() === exp.toLowerCase()) {\n` +
+        `          localStorage.setItem(SK, "VALID");\n` +
+        `          localStorage.setItem(SDK, new Date().toDateString());\n` +
+        `          p.delete("auth");\n` +
+        `          var clean = location.pathname + (p.toString() ? "?" + p.toString() : "") + location.hash;\n` +
+        `          history.replaceState({}, document.title, clean);\n` +
+        `          unlock();\n` +
+        `          if (document.body) initBridge(); else document.addEventListener("DOMContentLoaded", initBridge);\n` +
+        `          return;\n` +
+        `        }\n` +
+        `      }\n` +
+        `    }\n` +
+        `    if (sessOk()) {\n` +
+        `      unlock();\n` +
+        `      if (document.body) initBridge(); else document.addEventListener("DOMContentLoaded", initBridge);\n` +
+        `      return;\n` +
+        `    }\n` +
+        `    var sep = HUB_URL.indexOf("?") >= 0 ? "&" : "?";\n` +
+        `    location.replace(HUB_URL + sep + "return_url=" + encodeURIComponent(location.href));\n` +
+        `  }\n` +
+        `  verify();\n` +
+        `})();\n` +
+        `<\/script>`;
+
+    if (txt) txt.value = clientJs;
+    modal.classList.add('active');
+    if (window.lucide && typeof window.lucide.createIcons === "function") lucide.createIcons();
+}
+
+function closeClientCodeModal() {
+    var modal = document.getElementById('modalClientCode');
+    if (modal) modal.classList.remove('active');
+}
+
+function copyClientSnippet() {
+    var txt = document.getElementById('clientCodeSnippet');
+    if (!txt) return;
+    txt.select();
+    document.execCommand('copy');
+    addLog("CLIPBOARD: Skopiowano skrypt klienta SHA-256.", "success");
+}
+
+// Bindy w oknie globalnym
+window.quickFill = quickFill;
+window.openClientCodeModal = openClientCodeModal;
+window.closeClientCodeModal = closeClientCodeModal;
+window.copyClientSnippet = copyClientSnippet;
+window.logout = logout;
+
+// --- INICJALIZACJA ---
 window.onload = function () {
     receiveReturnUrl();
     if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
     setPageLoadActivity("Sprawdzanie zapisu sesji i przygotowanie widoku…", 14);
-    var loggedIn = isCurrentlyLoggedIn() || localStorage.getItem(CONFIG.SESSION_KEY) === "true";
+    var loggedIn = isCurrentlyLoggedIn();
     syncPageLoadSessionLine();
     loadHubGrid();
 
     if (loggedIn) {
         showHub();
         setTimeout(function () {
-            if (sendForwardToReturnUrl()) return;
+            sendForwardToReturnUrl();
         }, 100);
     } else {
         showAuth();
@@ -554,38 +786,45 @@ window.onload = function () {
     refreshStatusBar();
 
     setInterval(function () {
-        document.getElementById('sysClock').textContent = new Date().toLocaleTimeString();
+        var clock = document.getElementById('sysClock');
+        if (clock) clock.textContent = new Date().toLocaleTimeString();
         uptimeSec++;
-        document.getElementById('uptime').textContent = uptimeSec + "S";
+        var upEl = document.getElementById('uptime');
+        if (upEl) upEl.textContent = uptimeSec + "S";
         refreshStatusBar();
     }, 1000);
 };
 
 // --- BIND EVENTS ---
-document.getElementById('authBtn').addEventListener('click', handleAuth);
+var authBtn = document.getElementById('authBtn');
+if (authBtn) authBtn.addEventListener('click', handleAuth);
 
-document.getElementById('hubGrid').addEventListener('click', function (e) {
-    var card = e.target.closest('.lks-card');
-    if (card && card.getAttribute('data-url')) {
-        e.preventDefault();
-        connectToNode(card.getAttribute('data-url'));
-    }
-});
+var hubGrid = document.getElementById('hubGrid');
+if (hubGrid) {
+    hubGrid.addEventListener('click', function (e) {
+        var card = e.target.closest('.lks-card');
+        if (card && card.getAttribute('data-url')) {
+            e.preventDefault();
+            connectToNode(card.getAttribute('data-url'));
+        }
+    });
+}
 
-dom.input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') handleAuth();
-});
+if (dom.input) {
+    dom.input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') handleAuth();
+    });
+    dom.input.addEventListener('input', updateLiveSha);
+}
 
-(function bindThemeToggle() {
-    var btn = document.getElementById("themeToggle");
-    if (btn) btn.addEventListener("click", toggleTheme);
-})();
+var btnTheme = document.getElementById("themeToggle");
+if (btnTheme) btnTheme.addEventListener("click", toggleTheme);
 
 // Blokady systemowe OXY_OS
 document.addEventListener("DOMContentLoaded", function () {
     setPageLoadActivity("Ładowanie dokumentu i modułów interfejsu…", 6);
     syncPageLoadSessionLine();
-    document.querySelectorAll('[draggable="true"]').forEach((el) => { el.removeAttribute("draggable"); });
+    document.querySelectorAll('[draggable="true"]').forEach(function (el) { el.removeAttribute("draggable"); });
     document.addEventListener("dragstart", function (e) { e.preventDefault(); return false; });
     document.addEventListener("drop", function (e) { e.preventDefault(); return false; });
     document.addEventListener("dragover", function (e) { e.preventDefault(); return false; });

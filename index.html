@@ -20,7 +20,7 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Share+Tech+Mono&display=swap"
         rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/s-pro-v/root_web@refs/heads/main/root.css">
-    <title>LKS_SECURE_HUB // CORE_V4.6</title>
+    <title>LKS_SECURE_HUB // CORE_V4.6 [SHA-256]</title>
     <link rel="icon" type="image/png"
     href="https://raw.githubusercontent.com/s-pro-v/guard/refs/heads/main/favicon/lks_hub.png">
     <link rel="stylesheet" href="index.css">
@@ -97,22 +97,29 @@
                             <span class="lks-label lks-label--alert lks-gate__tag">LKS_POLICY</span>
                         </header>
                         <div class="lks-gate__body">
-                            <p class="lks-gate__intro lks-label">Bramka <strong>OXY_OS / LKS</strong> — wymagany klucz
-                                zgodny z polityką dostępu. Autoryzacja inicjuje sesję dzienną.</p>
+                            <div id="returnBanner" class="lks-return-banner">
+                                <i data-lucide="corner-down-right" class="lks-icon"></i>
+                                <span>POWRÓT DO WĘZŁA: <strong id="returnUrlText"></strong></span>
+                            </div>
+
+                            <p class="lks-gate__intro lks-label">Bramka <strong>OXY_OS / LKS</strong> — autoryzacja metodą <strong>SHA-256 (Zero-Plaintext)</strong>. Podany klucz nie jest przesyłany w sieci.</p>
+                            
                             <div class="lks-gate__field-panel">
-                                <label class="lks-label lks-gate__input-label" for="passInput">VECTOR_INICJALIZACYJNY
-                                    (KLUCZ)</label>
+                                <label class="lks-label lks-gate__input-label" for="passInput">VECTOR_INICJALIZACYJNY (KLUCZ)</label>
                                 <div class="lks-gate__field-wrap">
-                                    <input type="password" id="passInput" placeholder="KLUCZ_LKS / ENCRYPTION_KEY"
-                                        autocomplete="off">
+                                    <input type="password" id="passInput" placeholder="KLUCZ_LKS / SHA256_SECRET" autocomplete="off">
                                     <div class="lks-reticle lks-reticle--gate-corner" aria-hidden="true"></div>
+                                </div>
+                                <div class="lks-sha-live" title="Kryptograficzny skrót wpisywanego hasła w czasie rzeczywistym">
+                                    <span>SHA-256:</span>
+                                    <code id="shaLivePreview">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</code>
                                 </div>
                             </div>
                         </div>
                         <footer class="lks-gate__footer lks-bg">
                             <button id="authBtn" type="button" class="lks-gate__submit">
                                 <i data-lucide="key-round" class="lks-icon" aria-hidden="true"></i>
-                                AUTORYZUJ_SESJĘ
+                                AUTORYZUJ_SESJĘ (SHA-256)
                             </button>
                         </footer>
                     </div>
@@ -121,9 +128,12 @@
                 <div id="hubView">
                     <div class="lks-hubbar">
                         <span class="lks-heading lks-hubbar__title">
-                            <i data-lucide="network" class="lks-icon"></i> DOSTĘPNE_PUNKTY_WEJŚCIA
+                            <i data-lucide="network" class="lks-icon"></i> DOSTĘPNE_PUNKTY_WEJŚCIA [SHA-256_ACTIVE]
                         </span>
-                        <div class="lks-bg">
+                        <div class="lks-bg" style="display: flex; gap: 8px;">
+                            <button type="button" class="lks-btn--danger" style="width: auto; border-left-color: var(--highlight-color);" onclick="openClientCodeModal()">
+                                <i data-lucide="code" class="lks-icon"></i> KOD_KLIENTA_SHA
+                            </button>
                             <button type="button" onclick="logout()" class="lks-btn--danger">
                                 <i data-lucide="log-out" class="lks-icon"></i> WYLOGUJ
                             </button>
@@ -176,10 +186,31 @@
                 <span id="statusBarSession" class="lks-statusbar__session lks-statusbar__session--none"
                     title="">SESJA_LKS: BRAK</span>
                 <span class="lks-statusbar__sep" aria-hidden="true">|</span>
-                <span id="statusBarBuild">BUILD_V4.6</span>
+                <span id="statusBarBuild">BUILD_V4.6_SHA256</span>
                 <span class="lks-statusbar__sep" aria-hidden="true">|</span>
                 <span id="statusBarTheme">MOTYW: CIEMNY</span>
             </span>
+        </div>
+    </div>
+
+    <div id="modalClientCode" class="lks-modal-overlay">
+        <div class="lks-dialog-box">
+            <div class="lks-dialog-header">
+                <span><i data-lucide="terminal" class="lks-icon"></i> KOD_KLIENTA LKS GUARD (SHA-256)</span>
+                <button type="button" style="background:none; border:none; color:inherit; cursor:pointer; width:auto; padding:0;" onclick="closeClientCodeModal()">✕</button>
+            </div>
+            <div class="lks-dialog-body">
+                <p style="color:var(--text-muted); margin:0;">
+                    Wklej poniższy skrypt na dowolną stronę, aby chronić ją przez bramkę SHA-256 i autoryzację Huba:
+                </p>
+                <textarea id="clientCodeSnippet" class="lks-dialog-field" style="height: 140px; resize: vertical;" readonly></textarea>
+                <button type="button" class="lks-gate__submit" style="width: auto; padding: 6px 14px;" onclick="copyClientSnippet()">
+                    <i data-lucide="copy" class="lks-icon"></i> SKOPIUJ_KOD_DO_SCHOWKA
+                </button>
+            </div>
+            <div class="lks-dialog-footer">
+                <button type="button" class="lks-btn--danger" style="width:auto; padding:6px 14px;" onclick="closeClientCodeModal()">ZAMKNIJ</button>
+            </div>
         </div>
     </div>
 
