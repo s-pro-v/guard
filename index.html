@@ -99,7 +99,8 @@
                         <div class="lks-gate__body">
                             <div id="returnBanner" class="lks-return-banner">
                                 <i data-lucide="corner-down-right" class="lks-icon"></i>
-                                <span>POWRÓT DO WĘZŁA: <strong id="returnUrlText"></strong></span>
+                                <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">POWRÓT DO WĘZŁA: <strong id="returnUrlText"></strong></span>
+                                <button type="button" id="cancelReturnBtn" title="Anuluj powrót do strony i pozostań w Hubie" class="lks-banner-cancel-btn" style="background: none; border: none; color: var(--highlight-color); cursor: pointer; font-size: 13px; font-weight: bold; padding: 2px 6px;">✕</button>
                             </div>
 
                             <p class="lks-gate__intro lks-label">Bramka <strong>OXY_OS / LKS</strong> — autoryzacja metodą <strong>SHA-256 (Zero-Plaintext)</strong>. Podany klucz nie jest przesyłany w sieci.</p>

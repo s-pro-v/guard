@@ -281,38 +281,62 @@ function addLog(msg, type = '') {
 
 var pendingReturnUrl = null;
 
+function clearReturnUrl() {
+    pendingReturnUrl = null;
+    try {
+        sessionStorage.removeItem(CONFIG.RETURN_URL_KEY);
+        localStorage.removeItem(CONFIG.RETURN_URL_KEY);
+    } catch (e) { }
+
+    var banner = document.getElementById("returnBanner");
+    if (banner) banner.style.display = "none";
+
+    var authSubmitBtn = document.getElementById("authBtn");
+    if (authSubmitBtn) {
+        authSubmitBtn.innerHTML = '<i data-lucide="key-round" class="lks-icon" aria-hidden="true"></i> AUTORYZUJ_SESJĘ (SHA-256)';
+        if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
+    }
+
+    try {
+        var u = new URL(window.location.href);
+        if (u.searchParams.has("return_url") || u.searchParams.has("redirect") || u.searchParams.has("r")) {
+            u.searchParams.delete("return_url");
+            u.searchParams.delete("redirect");
+            u.searchParams.delete("r");
+            var cleanUrl = u.pathname + (u.search ? u.search : "") + u.hash;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+    } catch (e) { }
+}
+
 function receiveReturnUrl() {
     var params = new URLSearchParams(window.location.search);
-    var returnUrl = params.get("return_url") || params.get("redirect") || params.get("r");
-    
-    // Jeśli nie ma w parametrach URL, sprawdź pamięć sesji
-    if (!returnUrl) {
+    var rawUrl = params.get("return_url") || params.get("redirect") || params.get("r");
+
+    if (rawUrl) {
         try {
-            returnUrl = sessionStorage.getItem(CONFIG.RETURN_URL_KEY) || localStorage.getItem(CONFIG.RETURN_URL_KEY);
-        } catch(e) {}
-    }
-    
-    // Jeśli nadal brak, sprawdź czy użytkownik przyszedł z innej domeny (document.referrer)
-    if (!returnUrl && document.referrer) {
-        try {
-            var refUrl = new URL(document.referrer);
-            if (refUrl.host !== window.location.host) {
-                returnUrl = document.referrer;
+            var parsed = new URL(rawUrl, window.location.href);
+            if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+                pendingReturnUrl = parsed.href;
+            } else {
+                pendingReturnUrl = null;
             }
-        } catch(e) {}
+        } catch (e) {
+            pendingReturnUrl = rawUrl;
+        }
+    } else {
+        pendingReturnUrl = null;
+        try {
+            sessionStorage.removeItem(CONFIG.RETURN_URL_KEY);
+            localStorage.removeItem(CONFIG.RETURN_URL_KEY);
+        } catch (e) { }
     }
 
-    if (returnUrl) {
-        pendingReturnUrl = returnUrl;
-        try {
-            sessionStorage.setItem(CONFIG.RETURN_URL_KEY, returnUrl);
-            localStorage.setItem(CONFIG.RETURN_URL_KEY, returnUrl);
-        } catch (e) { }
-
+    if (pendingReturnUrl) {
         var banner = document.getElementById("returnBanner");
         var bannerText = document.getElementById("returnUrlText");
         if (banner && bannerText) {
-            bannerText.textContent = returnUrl;
+            bannerText.textContent = pendingReturnUrl;
             banner.style.display = "flex";
         }
 
@@ -321,32 +345,32 @@ function receiveReturnUrl() {
             authSubmitBtn.innerHTML = '<i data-lucide="corner-down-right" class="lks-icon" aria-hidden="true"></i> AUTORYZUJ I PRZEJDŹ DO STRONY';
             if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
         }
+
+        var cancelBtn = document.getElementById("cancelReturnBtn");
+        if (cancelBtn) {
+            cancelBtn.onclick = function (e) {
+                e.preventDefault();
+                clearReturnUrl();
+                addLog("RETURN_URL: Anulowano przekierowanie — pozostajesz w Hubie.", "warning");
+            };
+        }
     }
 }
 
 async function sendForwardToReturnUrl(hashUsed) {
     var returnUrl = pendingReturnUrl;
-    if (!returnUrl) {
-        try {
-            returnUrl = sessionStorage.getItem(CONFIG.RETURN_URL_KEY) || localStorage.getItem(CONFIG.RETURN_URL_KEY);
-        } catch(e) {}
-    }
     if (!returnUrl) return false;
 
-    pendingReturnUrl = null;
-    try {
-        sessionStorage.removeItem(CONFIG.RETURN_URL_KEY);
-        localStorage.removeItem(CONFIG.RETURN_URL_KEY);
-    } catch(e) {}
+    clearReturnUrl();
 
-    addLog("REDIRECT: Przekierowanie do strony wywołującej: " + returnUrl, "success");
+    addLog("REDIRECT: Przekierowanie do węzła: " + returnUrl, "success");
     var token = await getShaAuthToken(hashUsed);
     var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
     var target = returnUrl + sep + "auth=" + encodeURIComponent(token);
-    
+
     setTimeout(function () {
-        window.location.href = target;
-    }, 200);
+        window.location.replace(target);
+    }, 180);
     return true;
 }
 
@@ -709,51 +733,48 @@ function openClientCodeModal() {
         `  var ALLOWED_HASHES = ` + currentHashes + `;\n` +
         `  var SK = "lks_vault_auth", SDK = "lks_vault_auth_date";\n` +
         `  \n` +
-        `  // Blokada widoku strony przed autoryzacją\n` +
+        `  // 1. Natychmiastowa blokada widoku strony przed weryfikacją\n` +
         `  var s = document.createElement("style");\n` +
         `  s.id = "lks-lock"; s.textContent = "html { visibility: hidden !important; opacity: 0 !important; }";\n` +
         `  document.documentElement.appendChild(s);\n` +
         `  function unlock() { var el = document.getElementById("lks-lock"); if (el) el.remove(); document.documentElement.style.visibility = ""; document.documentElement.style.opacity = ""; }\n` +
         `  \n` +
+        `  // 2. Procedura wylogowania i powrotu do Huba\n` +
         `  function doLogout() {\n` +
         `    localStorage.removeItem(SK); localStorage.removeItem(SDK);\n` +
         `    sessionStorage.removeItem(SK);\n` +
         `    document.documentElement.style.visibility = "hidden";\n` +
         `    document.documentElement.style.opacity = "0";\n` +
-        `    location.replace(HUB_URL);\n` +
+        `    var sep = HUB_URL.indexOf("?") >= 0 ? "&" : "?";\n` +
+        `    location.replace(HUB_URL + sep + "return_url=" + encodeURIComponent(location.href));\n` +
         `  }\n` +
         `  \n` +
-        `  // 1. Odbiór sygnału wylogowania z Huba (postMessage)\n` +
+        `  // 3. Nasłuchiwanie sygnału wylogowania z Huba\n` +
         `  window.addEventListener("message", function(e){\n` +
         `    if (!e.data || typeof e.data !== "object") return;\n` +
-        `    if (e.data.type === "LKS_GUARD_LOGOUT" || (e.data.type === "LKS_SESSION_STATUS" && !e.data.valid)) {\n` +
+        `    if (e.data.type === "LKS_GUARD_LOGOUT" || (e.data.type === "LKS_SESSION_STATUS" && e.data.valid === false)) {\n` +
         `      doLogout();\n` +
         `    }\n` +
         `  });\n` +
         `  \n` +
-        `  // 2. Wykrywanie wylogowania w tej samej domenie (zdarzenie storage)\n` +
+        `  // 4. Synchronizacja wylogowania w tej samej domenie\n` +
         `  window.addEventListener("storage", function(e){\n` +
         `    if ((e.key === SK && e.newValue !== "VALID") || e.key === "lks_vault_logout_signal") {\n` +
         `      doLogout();\n` +
         `    }\n` +
         `  });\n` +
         `  \n` +
-        `  // 3. Ciągły Heartbeat - sprawdzanie czy Hub jest nadal zalogowany\n` +
+        `  // 5. Rejestracja i sprawdzanie stanu Huba (gdy strona otwarta z Huba)\n` +
         `  function checkHubSession() {\n` +
-        `    if (!window.opener || window.opener.closed) {\n` +
-        `      doLogout();\n` +
-        `      return;\n` +
+        `    if (window.opener && !window.opener.closed) {\n` +
+        `      try { window.opener.postMessage({ type: "LKS_SESSION_CHECK" }, "*"); } catch(e) {}\n` +
         `    }\n` +
-        `    try {\n` +
-        `      window.opener.postMessage({ type: "LKS_SESSION_CHECK" }, "*");\n` +
-        `    } catch(e) {}\n` +
         `  }\n` +
-        `  \n` +
+        `  if (window.opener && !window.opener.closed) {\n` +
+        `    try { window.opener.postMessage({ type: "LKS_REGISTER_CLIENT" }, "*"); } catch(e) {}\n` +
+        `  }\n` +
         `  window.addEventListener("focus", checkHubSession);\n` +
-        `  document.addEventListener("visibilitychange", function(){\n` +
-        `    if (document.visibilityState === "visible") checkHubSession();\n` +
-        `  });\n` +
-        `  setInterval(checkHubSession, 1500);\n` +
+        `  document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") checkHubSession(); });\n` +
         `  \n` +
         `  async function sha256(t){\n` +
         `    if (!t) return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";\n` +
@@ -764,7 +785,13 @@ function openClientCodeModal() {
         `  \n` +
         `  async function verify(){\n` +
         `    var p = new URLSearchParams(location.search);\n` +
-        `    if (p.get("lks_logout") === "1") { doLogout(); return; }\n` +
+        `    if (p.get("lks_logout") === "1") {\n` +
+        `      p.delete("lks_logout");\n` +
+        `      var clean = location.pathname + (p.toString() ? "?" + p.toString() : "") + location.hash;\n` +
+        `      history.replaceState({}, document.title, clean);\n` +
+        `      doLogout();\n` +
+        `      return;\n` +
+        `    }\n` +
         `    var auth = p.get("auth");\n` +
         `    var day = new Date().getDate();\n` +
         `    if (auth) {\n` +
@@ -773,6 +800,7 @@ function openClientCodeModal() {
         `        if (auth.toLowerCase() === exp.toLowerCase()) {\n` +
         `          localStorage.setItem(SK, "VALID");\n` +
         `          localStorage.setItem(SDK, new Date().toDateString());\n` +
+        `          sessionStorage.setItem(SK, "VALID");\n` +
         `          p.delete("auth");\n` +
         `          var clean = location.pathname + (p.toString() ? "?" + p.toString() : "") + location.hash;\n` +
         `          history.replaceState({}, document.title, clean);\n` +
@@ -783,11 +811,9 @@ function openClientCodeModal() {
         `      }\n` +
         `    }\n` +
         `    if (sessOk()) {\n` +
-        `      if (window.opener && !window.opener.closed) {\n` +
-        `        unlock();\n` +
-        `        checkHubSession();\n` +
-        `        return;\n` +
-        `      }\n` +
+        `      unlock();\n` +
+        `      checkHubSession();\n` +
+        `      return;\n` +
         `    }\n` +
         `    var sep = HUB_URL.indexOf("?") >= 0 ? "&" : "?";\n` +
         `    location.replace(HUB_URL + sep + "return_url=" + encodeURIComponent(location.href));\n` +
@@ -830,7 +856,7 @@ window.onload = function () {
     loadHubGrid();
 
     if (loggedIn) {
-        if (pendingReturnUrl || sessionStorage.getItem(CONFIG.RETURN_URL_KEY) || localStorage.getItem(CONFIG.RETURN_URL_KEY)) {
+        if (pendingReturnUrl) {
             sendForwardToReturnUrl();
             return;
         }
