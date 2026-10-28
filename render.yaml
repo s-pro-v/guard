@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: lks-guard
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MASTER_KEY
+        value: 3cdf2dabfe18fb4d0e1f39fc86f836ed20ef0510d0f373b8071417906842bb93
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TOKEN_EXPIRES_IN
+        value: 24h
+      - key: ALLOWED_ORIGINS
+        value: "*"

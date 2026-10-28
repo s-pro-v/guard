@@ -1,0 +1,829 @@
+(function () {
+  "use strict";
+
+  var HUB_URL = "%%HUB_URL%%";
+  var SK = "lks_vault_auth";
+  var SDK = "lks_vault_auth_date";
+  var TOKEN_KEY = "lks_render_auth_token";
+  var ALLOWED_HASHES = ["3cdf2dabfe18fb4d0e1f39fc86f836ed20ef0510d0f373b8071417906842bb93"];
+
+  var d = document;
+  var $ = function (i) { return d.getElementById(i); };
+  function b() { return d.body || d.documentElement; }
+
+  if ($("L0")) return;
+
+  // 1. Wstrzyknięcie czcionki i stylów LKS GUARD
+  (function injectStyles() {
+    if (d.getElementById("Z")) return;
+
+    var fontLink = d.createElement("link");
+    fontLink.rel = "stylesheet";
+    fontLink.href = "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap";
+    (d.head || d.documentElement).appendChild(fontLink);
+
+    var css = `
+:root {
+    --shadow-drop: rgba(32, 32, 32, 0.4) 0px 0px 0px 2px, rgba(0, 0, 0, 0.65) 0px 4px 6px -1px, rgba(255, 255, 255, 0.08) 0px 1px 0px inset;
+    --shadow-inset: inset 0px 0px 0px 2px rgba(32, 32, 32, 0.4), inset 0px 4px 6px -1px rgba(0, 0, 0, 0.65), inset 0px 1px 0px rgba(255, 255, 255, 0.08);
+    --shadow-hover: rgba(32, 32, 32, 0.2) 0px 0px 0px 1px, rgba(0, 0, 0, 0.325) 0px 2px 3px -0.5px, rgba(255, 255, 255, 0.04) 0px 0.5px 0px inset;
+    --padding: 0.125rem;
+    --gap: 0.125rem;
+    --bg-tertiary: #2e2e2e;
+    --border-color: #2a2a2a;
+    --panel-bg: #2a2a2a;
+    --card-bg: #1e1e1e;
+    --text-muted: #858585;
+    --text-color: #e0e0e0;
+    --highlight-color: #f36c00;
+    --accent-ok: #09b83e;
+    --border-color-hover: #444444;
+    --hover-bg: #3c3c3c;
+    --font-family: "JetBrains Mono", monaco, courier, monospace;
+    --font-main: var(--font-family);
+    --transition-speed: 0.2s;
+    --transition-ease: ease;
+    --transition-ui: background-color var(--transition-speed) var(--transition-ease),
+        color var(--transition-speed) var(--transition-ease),
+        border-color var(--transition-speed) var(--transition-ease),
+        box-shadow var(--transition-speed) var(--transition-ease);
+}
+
+#L0, #L0 *, #L0 *::before, #L0 *::after {
+    border-radius: 0 !important;
+    box-sizing: border-box;
+}
+
+body * {
+    visibility: hidden !important;
+}
+
+#L0, #L0 * {
+    visibility: visible !important;
+}
+
+body.lks-guard-passed * {
+    visibility: visible !important;
+}
+
+#L0 {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--card-bg);
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(rgba(18, 18, 18, 0.76), rgba(18, 18, 18, 0.62)),
+        url('https://raw.githubusercontent.com/s-pro-v/os_pro/refs/heads/main/assets/images/bg4.jpg');
+    background-size: 24px 24px, 24px 24px, cover, cover;
+    background-position: center;
+    font-family: var(--font-family);
+    user-select: none;
+    -webkit-user-select: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#L0.d, #L0.d * {
+    opacity: 0;
+    visibility: hidden !important;
+    pointer-events: none;
+}
+
+#L0 .btn-bg {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: var(--shadow-inset);
+    padding: var(--padding);
+    gap: var(--gap);
+    position: relative;
+    overflow: hidden;
+    width: fit-content;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    transition: var(--transition-ui);
+}
+
+#L0 .btn-bg:hover {
+    border: 1px solid var(--border-color-hover);
+}
+
+#L0 .btn {
+    box-shadow: var(--shadow-drop);
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    width: 100px;
+    height: 30px;
+    transition: var(--transition-ui);
+    font-family: var(--font-family);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
+#L0 .btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color-hover);
+    box-shadow: var(--shadow-hover);
+}
+
+#L0 .btn:active {
+    box-shadow: var(--shadow-inset);
+    background: var(--panel-bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+}
+
+#L0 .lks-outer-frame {
+    padding: 0.125rem;
+    background: #181818;
+    border: 1px solid var(--border-color);
+}
+
+#L0 .lks-outer-frame::before,
+#L0 .lks-outer-frame::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--highlight-color);
+    pointer-events: none;
+    z-index: 3;
+    opacity: 0.75;
+}
+
+#L0 .lks-outer-frame::before {
+    top: 2px;
+    left: 2px;
+    border-right: none;
+    border-bottom: none;
+}
+
+#L0 .lks-outer-frame::after {
+    bottom: 2px;
+    right: 2px;
+    border-left: none;
+    border-top: none;
+}
+
+#L0 #L1.lks-chassis {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 390px;
+    max-width: 92vw;
+    height: auto;
+    padding: 0.375rem;
+    gap: 0.125rem;
+    background-color: var(--panel-bg);
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    background-size: 12px 12px;
+    border: 1px solid var(--border-color);
+    text-transform: uppercase;
+}
+
+#L0 #L1.lks-chassis:hover {
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color-hover);
+}
+
+#L0 .lks-row {
+    display: flex;
+    width: 100%;
+    gap: var(--gap);
+}
+
+#L0 .lks-grow {
+    flex: 1;
+    width: 40%;
+    height: fit-content;
+}
+
+#L0 .lks-full {
+    width: 100%;
+}
+
+#L0 .lks-led-box {
+    width: 28px;
+    height: 26px;
+    justify-content: center;
+    background: var(--card-bg);
+}
+
+#L0 #L-led {
+    display: block;
+    width: 6px;
+    height: 6px;
+    background: var(--highlight-color);
+    box-shadow: 0 0 6px var(--highlight-color);
+}
+
+#L0 .lks-telemetry {
+    width: 100%;
+    height: 26px;
+    padding: 0 0.5rem;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 0.06rem;
+    background: var(--card-bg);
+}
+
+#L0 .t-ok {
+    color: var(--highlight-color);
+    font-weight: 800;
+}
+
+#L0 .t-ses {
+    color: var(--text-color);
+    opacity: 0.85;
+}
+
+#L0 .t-clock {
+    color: var(--highlight-color);
+    font-weight: 700;
+}
+
+#L0 .lks-tile {
+    width: 100%;
+    height: 54px;
+    padding: 0 0.5rem 0 0.75rem;
+    justify-content: space-between;
+    background: linear-gradient(180deg, #323232 0%, #262626 100%);
+    border: 1px solid var(--border-color);
+}
+
+#L0 .lks-tile:hover {
+    background: linear-gradient(180deg, #3a3a3a 0%, #2c2c2c 100%);
+    border: 1px solid var(--border-color-hover);
+}
+
+#L0 .lks-tile-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.125rem;
+    text-align: left;
+}
+
+#L0 #L2 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.08rem;
+    color: var(--text-color);
+    line-height: 1;
+}
+
+#L0 .lks-sub {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06rem;
+    color: var(--text-muted);
+    opacity: 0.65;
+    line-height: 1;
+}
+
+#L0 .lks-icon-slot {
+    padding: var(--padding);
+    background: var(--card-bg);
+}
+
+#L0 #L2-badge.lks-icon-btn {
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    color: var(--highlight-color);
+    border: 1px solid var(--border-color);
+}
+
+#L0 #L2-badge.lks-icon-btn:hover {
+    border: 1px solid var(--border-color-hover);
+    color: var(--text-color);
+}
+
+#L0 #L3.lks-msg {
+    width: 100%;
+    height: 30px;
+    padding: 0 0.625rem;
+    font-size: 10px;
+    letter-spacing: 0.1rem;
+    color: var(--text-muted);
+    justify-content: flex-start;
+}
+
+#L0 #L3.lks-msg::before {
+    content: "SYS_MSG // ";
+    color: var(--highlight-color);
+    opacity: 0.75;
+    margin-right: 0.35rem;
+}
+
+/* MATRYCA KWADRACIKÓW SKANERA */
+#L0 .lks-row.L {
+    justify-content: space-between;
+    gap: 0.125rem;
+}
+
+#L0 .L .btn-bg {
+    flex: 1;
+    padding: 0.125rem;
+    aspect-ratio: 1 / 1;
+    max-width: 15px;
+}
+
+#L0 .L b.btn {
+    width: 100%;
+    height: 100%;
+    min-width: 6px;
+    min-height: 6px;
+    aspect-ratio: 1 / 1;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    animation: lks-scan 1.2s infinite steps(1);
+}
+
+#L0 .L b.btn:hover {
+    border: 1px solid var(--border-color-hover);
+}
+
+#L0 .L .btn-bg:nth-child(6n+1) b.btn { animation-delay: 0s; }
+#L0 .L .btn-bg:nth-child(6n+2) b.btn { animation-delay: 0.15s; }
+#L0 .L .btn-bg:nth-child(6n+3) b.btn { animation-delay: 0.3s; }
+#L0 .L .btn-bg:nth-child(6n+4) b.btn { animation-delay: 0.45s; }
+#L0 .L .btn-bg:nth-child(6n+5) b.btn { animation-delay: 0.6s; }
+#L0 .L .btn-bg:nth-child(6n+6) b.btn { animation-delay: 0.75s; }
+
+@keyframes lks-scan {
+    0%, 100% {
+        background: var(--bg-tertiary);
+        border-color: var(--border-color);
+    }
+    50% {
+        background: var(--highlight-color);
+        border-color: var(--border-color-hover);
+    }
+}
+
+#L0 #L4.lks-bar-slot {
+    width: 100%;
+    height: 15px;
+    padding: var(--padding);
+    background: var(--card-bg);
+    box-shadow: var(--shadow-inset);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+#L0 #L4.lks-bar-slot:hover {
+    border: 1px solid var(--border-color-hover);
+}
+
+#L0 #L5.btn {
+    width: 0%;
+    height: 100%;
+    background: var(--highlight-color);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-drop);
+}
+
+#L0 #L5.btn:hover {
+    border: 1px solid var(--border-color-hover);
+}
+
+#L0 #L6.lks-pct {
+    width: 58px;
+    height: 15px;
+    justify-content: center;
+    font-size: 10px;
+    letter-spacing: 0.06rem;
+    color: var(--highlight-color);
+}
+
+#L0 #L1.ok #L-led {
+    background: var(--accent-ok);
+    box-shadow: 0 0 6px var(--accent-ok);
+}
+
+#L0 #L1.ok .t-ok,
+#L0 #L1.ok .t-ses {
+    color: var(--accent-ok);
+}
+
+#L0 #L1.ok #L2-badge.lks-icon-btn {
+    color: var(--accent-ok);
+    border-color: var(--border-color);
+}
+
+#L0 #L1.ok #L2-badge.lks-icon-btn:hover {
+    border-color: var(--border-color-hover);
+}
+
+#L0 #L1.ok #L3,
+#L0 #L1.ok #L3::before {
+    color: var(--accent-ok);
+}
+
+#L0 #L1.ok #L3:empty::after {
+    content: "ACCESS_GRANTED // SESJA AKTYWNA";
+    color: var(--accent-ok);
+}
+
+#L0 #L1.ok #L5.btn {
+    background: var(--accent-ok);
+    border-color: var(--border-color);
+    animation: lks-load 1.65s linear forwards;
+}
+
+#L0 #L1.ok .L b.btn {
+    background: var(--accent-ok);
+    border-color: var(--border-color);
+    animation-timing-function: steps(2, end);
+    animation-iteration-count: infinite;
+}
+
+#L0 #L1.ok .L .btn-bg:nth-child(3n+1) b.btn { animation-name: srv-a; animation-duration: 0.55s; animation-delay: -0.18s; }
+#L0 #L1.ok .L .btn-bg:nth-child(3n+2) b.btn { animation-name: srv-b; animation-duration: 0.85s; animation-delay: -0.54s; }
+#L0 #L1.ok .L .btn-bg:nth-child(3n+3) b.btn { animation-name: srv-c; animation-duration: 0.68s; animation-delay: -0.31s; }
+
+#L0 #L1.er #L-led {
+    background: var(--highlight-color);
+    box-shadow: 0 0 8px var(--highlight-color);
+}
+
+#L0 #L1.er .t-ok,
+#L0 #L1.er .t-ses,
+#L0 #L1.er #L2,
+#L0 #L1.er #L3,
+#L0 #L1.er #L2-badge {
+    color: var(--highlight-color);
+}
+
+#L0 #L1.er #L3::before {
+    content: "ERR_CODE // ";
+}
+
+#L0 #L1.er .L b.btn {
+    background: var(--highlight-color);
+    border-color: var(--border-color);
+    opacity: 0.45;
+}
+
+#L0 #L1.er #L5.btn {
+    width: 100%;
+    background: var(--highlight-color);
+    border-color: var(--border-color);
+}
+
+@keyframes lks-load {
+    0% { width: 0%; }
+    25% { width: 25%; }
+    31% { width: 25%; }
+    65% { width: 65%; }
+    80% { width: 65%; }
+    100% { width: 100%; }
+}
+
+@keyframes srv-a {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+}
+@keyframes srv-b {
+    0%, 100% { opacity: 0.45; }
+    58% { opacity: 1; }
+}
+@keyframes srv-c {
+    0%, 100% { opacity: 0.15; }
+    68% { opacity: 1; }
+}
+`;
+    var s = d.createElement("style");
+    s.id = "Z";
+    s.textContent = css;
+    (d.head || d.documentElement).appendChild(s);
+  })();
+
+  var ICON_LOCK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+  var ICON_OK = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>';
+  var ICON_ERR = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 20h20L12 2z"/><path d="M12 9v5"/><path d="M12 16h.01"/></svg>';
+
+  function clearSess() {
+    try {
+      sessionStorage.removeItem(SK);
+      sessionStorage.removeItem(SDK);
+      localStorage.removeItem(SK);
+      localStorage.removeItem(SDK);
+      localStorage.removeItem(TOKEN_KEY);
+    } catch (e) {}
+  }
+
+  function sessOk() {
+    var t = new Date().toDateString(),
+      x = sessionStorage.getItem(SK) || localStorage.getItem(SK),
+      y = sessionStorage.getItem(SDK) || localStorage.getItem(SDK);
+    if (x === "VALID" && y !== t) {
+      clearSess();
+      return 0;
+    }
+    return x === "VALID" && y === t;
+  }
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  function updateNavStatus(state, label, status) {
+    var codeEl = $("L-st-code"), lblEl = $("L-st-lbl");
+    if (codeEl && label) codeEl.textContent = label;
+    if (lblEl && status) lblEl.textContent = status;
+  }
+
+  var clockId = 0;
+  function startNavClock() {
+    if (clockId) return;
+    function tick() {
+      var t = new Date(),
+        dateStr = pad(t.getDate()) + "." + pad(t.getMonth() + 1) + "." + t.getFullYear(),
+        timeStr = pad(t.getHours()) + ":" + pad(t.getMinutes()) + ":" + pad(t.getSeconds()),
+        mDate = $("L-date"),
+        mTime = $("L-time");
+      if (mDate) mDate.textContent = dateStr;
+      if (mTime) mTime.textContent = timeStr;
+    }
+    tick();
+    clockId = setInterval(tick, 1000);
+  }
+
+  function setSt(x, w) {
+    var p = $("L1"), a = $("L2"), bg = $("L2-badge"), s = $("L3");
+    if (p) p.classList.remove("er");
+    if (w) {
+      if (p) p.classList.add("ok");
+      if (a) a.textContent = "GUARD // OK";
+      if (bg) bg.innerHTML = ICON_OK;
+      if (s) s.textContent = x || "";
+      updateNavStatus("ok", "OK", "SESJA");
+    } else if (s && x) s.textContent = x;
+  }
+
+  function hide() {
+    var e = b();
+    e.classList.add("lks-guard-passed");
+    e.classList.remove("lks-page-loading");
+    var o = $("L0");
+    if (o) o.classList.add("d");
+  }
+
+  function redir(e) {
+    clearSess();
+    var o = $("L0"), p = $("L1"), a = $("L2"), bg = $("L2-badge"), s = $("L3");
+    if (o) {
+      b().classList.remove("lks-guard-passed");
+      b().classList.add("lks-page-loading");
+      o.classList.remove("d");
+    }
+    updateNavStatus("stop", "STOP", e ? "SESJA" : "BRAK");
+    if (p) { p.classList.remove("ok"); p.classList.add("er"); }
+    if (a) a.textContent = "GUARD // STOP";
+    if (bg) bg.innerHTML = ICON_ERR;
+    if (s) s.textContent = e ? "Sesja wygasła → Hub" : "Brak autoryzacji → Hub";
+    var g = HUB_URL || location.origin + "/",
+      u = location.origin + location.pathname;
+    setTimeout(function () {
+      var sep = g.indexOf("?") >= 0 ? "&" : "?";
+      location.replace(g + sep + "return_url=" + encodeURIComponent(u));
+    }, 1000);
+  }
+
+  function watch() {
+    function k() {
+      if (!d.hidden && !sessOk()) redir(1);
+      checkHubSession();
+    }
+    setInterval(k, 1500);
+    d.addEventListener("visibilitychange", function () {
+      if (!d.hidden) k();
+    });
+  }
+
+  function go() {
+    setSt("", 1);
+    var bar = $("L5"), pct = $("L6"), done = 0;
+    function finish() {
+      if (done) return;
+      done = 1;
+      if (pct) pct.textContent = "100%";
+      hide();
+      updateNavStatus("ok", "OK", "SESJA");
+      startNavClock();
+      watch();
+    }
+    function showProgress(start) {
+      var elapsed = Math.min((performance.now() - start) / 2650, 1), value;
+      if (elapsed < 0.25) value = elapsed * 100;
+      else if (elapsed < 0.31) value = 25;
+      else if (elapsed < 0.65) value = 25 + ((elapsed - 0.31) / 0.34) * 40;
+      else if (elapsed < 0.8) value = 65;
+      else value = 65 + ((elapsed - 0.8) / 0.2) * 35;
+      if (pct) pct.textContent = Math.min(100, Math.round(value)) + "%";
+      if (!done && elapsed < 1) requestAnimationFrame(function () { showProgress(start); });
+    }
+    showProgress(performance.now());
+    if (bar) bar.addEventListener("animationend", finish, { once: true });
+    setTimeout(finish, bar ? 3200 : 0);
+  }
+
+  async function sha256(t) {
+    if (!t) return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    if (window.crypto && crypto.subtle && crypto.subtle.digest) {
+      var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+      return Array.from(new Uint8Array(buf)).map(function (x) { return x.toString(16).padStart(2, "0"); }).join("");
+    }
+    return "";
+  }
+
+  function checkHubSession() {
+    if (window.opener && !window.opener.closed) {
+      try { window.opener.postMessage({ type: "LKS_SESSION_CHECK" }, "*"); } catch (e) {}
+    }
+  }
+
+  window.addEventListener("message", function (e) {
+    if (!e.data || typeof e.data !== "object") return;
+    if (e.data.type === "LKS_GUARD_LOGOUT" || (e.data.type === "LKS_SESSION_STATUS" && e.data.valid === false)) {
+      clearSess();
+      redir(1);
+    }
+  });
+
+  window.addEventListener("storage", function (e) {
+    if ((e.key === SK && e.newValue !== "VALID") || e.key === "lks_vault_logout_signal") {
+      clearSess();
+      redir(1);
+    }
+  });
+
+  try {
+    var bc = new BroadcastChannel("lks_channel");
+    bc.onmessage = function (e) {
+      if (e.data && (e.data.type === "LKS_GUARD_LOGOUT" || e.data.valid === false)) {
+        clearSess();
+        redir(1);
+      }
+    };
+  } catch (e) {}
+
+  if (window.opener && !window.opener.closed) {
+    try { window.opener.postMessage({ type: "LKS_REGISTER_CLIENT" }, "*"); } catch (e) {}
+  }
+  window.addEventListener("focus", checkHubSession);
+
+  async function run() {
+    var q = new URLSearchParams(location.search);
+    if (q.get("lks_logout") === "1") {
+      clearSess();
+      history.replaceState({}, d.title, location.origin + location.pathname);
+      location.replace(HUB_URL || location.origin + "/");
+      return;
+    }
+
+    var n = q.get("auth");
+    var day = new Date().getDate();
+
+    // 1. Sprawdzenie tokenu z parametru URL
+    if (n) {
+      try {
+        var verifyUrl = HUB_URL.replace(/\/$/, "") + "/api/auth/verify?token=" + encodeURIComponent(n);
+        var res = await fetch(verifyUrl, { method: "GET", headers: { "Accept": "application/json" } });
+        if (res.ok) {
+          var data = await res.json();
+          if (data && data.valid) {
+            sessionStorage.setItem(SK, "VALID");
+            sessionStorage.setItem(SDK, new Date().toDateString());
+            localStorage.setItem(TOKEN_KEY, n);
+            history.replaceState({}, d.title, location.origin + location.pathname);
+            go();
+            checkHubSession();
+            return;
+          }
+        }
+      } catch (err) {}
+
+      // Fallback SHA-256
+      for (var i = 0; i < ALLOWED_HASHES.length; i++) {
+        var exp = await sha256(ALLOWED_HASHES[i] + "_" + day);
+        if (n.toLowerCase() === exp.toLowerCase()) {
+          sessionStorage.setItem(SK, "VALID");
+          sessionStorage.setItem(SDK, new Date().toDateString());
+          history.replaceState({}, d.title, location.origin + location.pathname);
+          go();
+          checkHubSession();
+          return;
+        }
+      }
+      clearSess();
+      redir(0);
+      return;
+    }
+
+    // 2. Sprawdzenie tokenu w pamięci podręcznej (Render JWT)
+    var savedToken = localStorage.getItem(TOKEN_KEY);
+    if (savedToken) {
+      try {
+        var vUrl = HUB_URL.replace(/\/$/, "") + "/api/auth/verify?token=" + encodeURIComponent(savedToken);
+        var vRes = await fetch(vUrl, { method: "GET", headers: { "Accept": "application/json" } });
+        if (vRes.ok) {
+          var vData = await vRes.json();
+          if (vData && vData.valid) {
+            sessionStorage.setItem(SK, "VALID");
+            sessionStorage.setItem(SDK, new Date().toDateString());
+            go();
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (window.opener && !window.opener.closed) {
+      checkHubSession();
+      if (sessOk()) { go(); return; }
+      redir(0);
+      return;
+    }
+
+    if (sessOk()) { go(); return; }
+
+    // Dopuszczalność podglądu w środowisku czysto lokalnym
+    if (location.protocol === "file:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+      go();
+      return;
+    }
+
+    clearSess();
+    redir(0);
+  }
+
+  function mount() {
+    try { build(); } catch (e) { hide(); throw e; }
+  }
+
+  function build() {
+    var e = b();
+    e.classList.add("lks-page-loading");
+
+    var leds = "";
+    for (var k = 0; k < 24; k++) {
+      leds += '<div class="btn-bg"><b class="btn"></b></div>';
+    }
+
+    var o = d.createElement("div");
+    o.id = "L0";
+    o.innerHTML =
+      '<div class="btn-bg lks-outer-frame">' +
+        '<div id="L1" class="btn lks-chassis">' +
+          '<div class="lks-row lks-top-bar">' +
+            '<div class="btn-bg"><div class="btn lks-led-box"><i id="L-led"></i></div></div>' +
+            '<div class="btn-bg lks-grow">' +
+              '<div class="btn lks-telemetry">' +
+                '<span id="L-st-code" class="t-ok">WAIT</span>' +
+                '<span id="L-st-lbl" class="t-ses">SESJA</span>' +
+                '<span id="L-date" class="t-clock">--.--.----</span>' +
+                '<span id="L-time" class="t-clock">--:--:--</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="btn-bg lks-full">' +
+            '<div class="btn lks-tile">' +
+              '<div class="lks-tile-info">' +
+                '<p id="L2">LKS_GUARD</p>' +
+                '<span class="lks-sub">SECURITY GATE // RENDER CLOUD</span>' +
+              '</div>' +
+              '<div class="btn-bg lks-icon-slot">' +
+                '<span id="L2-badge" class="btn lks-icon-btn">' + ICON_LOCK + '</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="btn-bg lks-full"><p id="L3" class="btn lks-msg">Weryfikacja sesji…</p></div>' +
+          '<div class="lks-row L">' + leds + '</div>' +
+          '<div class="lks-row">' +
+            '<div class="btn-bg lks-grow"><div id="L4" class="btn lks-bar-slot"><div id="L5" class="btn"></div></div></div>' +
+            '<div class="btn-bg"><div id="L6" class="btn lks-pct">0%</div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    e.appendChild(o);
+    startNavClock();
+    run();
+  }
+
+  if (d.readyState === "loading") d.addEventListener("DOMContentLoaded", mount);
+  else mount();
+})();
+
