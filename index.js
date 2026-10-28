@@ -710,6 +710,12 @@ function toggleTheme() {
 }
 
 function logout() {
+    // Powiadomienie serwera Render o globalnym wylogowaniu wszystkich stron
+    if (window.location.protocol.startsWith("http")) {
+        try {
+            fetch("/api/auth/logout", { method: "POST" });
+        } catch(e) {}
+    }
     localStorage.removeItem(CONFIG.SESSION_KEY);
     localStorage.removeItem(CONFIG.SESSION_DATE_KEY);
     localStorage.removeItem(CONFIG.SESSION_HASH_KEY);

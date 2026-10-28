@@ -683,14 +683,57 @@ body.lks-guard-passed * {
     }, 1000);
   }
 
+  var isCheckingSession = false;
+  async function checkServerSession() {
+    if (isCheckingSession) return;
+    var token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      if (!sessOk()) redir(1);
+      return;
+    }
+    isCheckingSession = true;
+    try {
+      var vUrl = HUB_URL.replace(/\/$/, "") + "/api/auth/verify?token=" + encodeURIComponent(token);
+      var r = await fetch(vUrl, { method: "GET", headers: { "Accept": "application/json" } });
+      if (!r.ok) {
+        clearSess();
+        redir(1);
+        return;
+      }
+      var data = await r.json();
+      if (!data || !data.valid) {
+        clearSess();
+        redir(1);
+        return;
+      }
+    } catch (err) {
+      if (!sessOk()) {
+        clearSess();
+        redir(1);
+      }
+    } finally {
+      isCheckingSession = false;
+    }
+  }
+
   function watch() {
     function k() {
-      if (!d.hidden && !sessOk()) redir(1);
+      if (!d.hidden) {
+        if (!sessOk()) redir(1);
+        checkServerSession();
+      }
       checkHubSession();
     }
-    setInterval(k, 1500);
+    setInterval(k, 2000);
     d.addEventListener("visibilitychange", function () {
-      if (!d.hidden) k();
+      if (!d.hidden) {
+        if (!sessOk()) redir(1);
+        checkServerSession();
+      }
+    });
+    window.addEventListener("focus", function () {
+      if (!sessOk()) redir(1);
+      checkServerSession();
     });
   }
 
