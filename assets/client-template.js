@@ -543,6 +543,29 @@ body.lks-guard-passed * {
     var codeEl = $("L-st-code"), lblEl = $("L-st-lbl");
     if (codeEl && label) codeEl.textContent = label;
     if (lblEl && status) lblEl.textContent = status;
+
+    var n = $("lks-nav-status");
+    if (!n) return;
+    n.setAttribute("data-lks-state", state || "wait");
+    n.setAttribute("title", "LKS_SECURE_HUB // CORE_V5.0 [RENDER_CLOUD]");
+    n.style.cursor = "pointer";
+
+    if (n.tagName === "A") {
+      n.href = HUB_URL || "https://guard-7948.onrender.com/";
+      n.target = "_blank";
+      n.rel = "noopener noreferrer";
+    } else if (!n.dataset.boundClick) {
+      n.dataset.boundClick = "1";
+      n.addEventListener("click", function (e) {
+        e.preventDefault();
+        window.open(HUB_URL || "https://guard-7948.onrender.com/", "_blank");
+      });
+    }
+
+    var l = n.querySelector(".nav-pill__lks-label"),
+      s = n.querySelector(".nav-pill__lks-status");
+    if (l) l.textContent = label || "CORE_V5.0";
+    if (s && status) s.textContent = status;
   }
 
   var clockId = 0;
@@ -553,9 +576,16 @@ body.lks-guard-passed * {
         dateStr = pad(t.getDate()) + "." + pad(t.getMonth() + 1) + "." + t.getFullYear(),
         timeStr = pad(t.getHours()) + ":" + pad(t.getMinutes()) + ":" + pad(t.getSeconds()),
         mDate = $("L-date"),
-        mTime = $("L-time");
+        mTime = $("L-time"),
+        dd = $("lks-nav-date"),
+        tt = $("lks-nav-time");
       if (mDate) mDate.textContent = dateStr;
       if (mTime) mTime.textContent = timeStr;
+      if (dd) dd.textContent = dateStr;
+      if (tt) {
+        tt.textContent = timeStr;
+        tt.setAttribute("datetime", t.toISOString());
+      }
     }
     tick();
     clockId = setInterval(tick, 1000);
