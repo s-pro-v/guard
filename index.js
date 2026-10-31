@@ -615,6 +615,10 @@ function renderHubGrid(cards) {
         if (!url) return;
         hubNodeCount++;
 
+        if (/os_pro/i.test(url) || (title && title.indexOf("Glass — Dev Links") !== -1)) {
+            cardImage = "assets/images/bg4.jpg";
+        }
+
         var carrdShareImg = "";
         if (/\.carrd\.co/i.test(url)) {
             carrdShareImg = url.replace(/\/+$/, "") + "/assets/images/share.jpg";
