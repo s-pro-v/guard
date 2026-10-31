@@ -616,7 +616,7 @@ function renderHubGrid(cards) {
         hubNodeCount++;
 
         if (/os_pro/i.test(url) || (title && title.indexOf("Glass — Dev Links") !== -1)) {
-            cardImage = "assets/images/bg4.jpg";
+            cardImage = "https://s-pro-v.github.io/os_pro/assets/images/bg.jpg";
         }
 
         var carrdShareImg = "";
