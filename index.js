@@ -497,6 +497,9 @@ async function connectToNode(url) {
 
 // Favicon helpers
 function getFaviconUrl(url) {
+    if (url && (url.indexOf("os_pro") !== -1 || url.indexOf("s-pro-v.github.io/os_pro") !== -1)) {
+        return "assets/images/favicon.png?v=1";
+    }
     var cleanUrl = url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
     var ver = "3";
     if (cleanUrl.indexOf("carrd.co") !== -1) {
@@ -513,6 +516,10 @@ function getFirstLetter(url) {
 }
 
 function handleFaviconError(imgElement, url) {
+    if (url && url.indexOf("os_pro") !== -1) {
+        imgElement.src = "assets/images/favicon.png?v=1";
+        return;
+    }
     var attempt = parseInt(imgElement.dataset.attempt, 10) || 1;
     var cleanUrl = url.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
     var isCarrd = cleanUrl.indexOf("carrd.co") !== -1;
