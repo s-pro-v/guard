@@ -544,13 +544,13 @@ function handleFaviconError(imgElement, url) {
     }
 }
 
-var DEFAULT_FAVICON_URL = "favicon/lks_hub.png";
+var DEFAULT_FAVICON_URL = "assets/images/favicon.png?v=1";
 
 function showFaviconFallback(imgElement) {
     if (!imgElement) return;
     imgElement.onerror = function () {
         imgElement.onerror = null;
-        imgElement.src = "https://raw.githubusercontent.com/s-pro-v/guard/refs/heads/main/favicon/lks_hub.png";
+        imgElement.src = "assets/images/favicon.png?v=1";
     };
     imgElement.src = DEFAULT_FAVICON_URL;
     imgElement.style.display = "block";
